@@ -1,16 +1,6 @@
 import type {JSX} from "react";
-
-function BrandMark(): JSX.Element {
-	return (
-		<span className="tl-brand-mark" aria-hidden="true">
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="size-4">
-				<circle cx="10" cy="10" r="4.5" />
-				<path d="m13.5 13.5 4.5 4.5" strokeLinecap="round" />
-				<path d="M8 10h4M10 8v4" strokeLinecap="round" />
-			</svg>
-		</span>
-	);
-}
+import {Link} from "react-router-dom";
+import Brand from "./Brand";
 
 export default function Navbar(): JSX.Element {
 	return (
@@ -24,10 +14,7 @@ export default function Navbar(): JSX.Element {
 							<path d="M14 10l2 2l-2 2" />
 						</svg>
 					</label>
-					<div className="ml-1 flex items-center gap-2.5">
-						<BrandMark />
-						<span className="tl-wordmark text-lg">Talent<span className="text-primary">Lens</span></span>
-					</div>
+					<Link to="/" className="ml-1"><Brand /></Link>
 				</div>
 
 				<div className="navbar-end gap-2">

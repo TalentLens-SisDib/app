@@ -1,4 +1,5 @@
 import type {JSX, ReactNode} from "react";
+import {Link} from "react-router-dom";
 
 type PageHeaderProps = {
 	title: string;
@@ -32,11 +33,11 @@ export default function PageHeader({
 													{crumb.label}
 												</span>
 											) : (
-												<a
-													href={crumb.href}
+												<Link
+													to={crumb.href}
 													className="text-base-content/60 hover:text-base-content">
 													{crumb.label}
-												</a>
+												</Link>
 											)}
 											{!isLast && (
 												<span className="text-base-content/45">/</span>
