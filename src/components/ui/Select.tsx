@@ -25,9 +25,9 @@ export default function Select({
 			: undefined;
 
 	return (
-		<div className="w-full">
+		<div className="ds-field">
 			{label && (
-				<label htmlFor={selectId} className="label mb-1 px-0 py-0 text-sm font-medium">
+				<label htmlFor={selectId} className="ds-field-label">
 					{label}
 					{required && <span className="text-error"> *</span>}
 				</label>
@@ -44,16 +44,10 @@ export default function Select({
 				{children}
 			</select>
 			{error ? (
-				<p id={`${selectId}-error`} role="alert" className="text-error mt-1.5 text-xs leading-5">
-					{error}
-				</p>
-			) : (
-				helperText && (
-					<p id={`${selectId}-helper`} className="text-base-content/60 mt-1.5 text-xs leading-5">
-						{helperText}
-					</p>
-				)
-			)}
+				<p id={`${selectId}-error`} role="alert" className="ds-field-note ds-field-note-error">{error}</p>
+			) : helperText ? (
+				<p id={`${selectId}-helper`} className="ds-field-note ds-field-note-muted">{helperText}</p>
+			) : null}
 		</div>
 	);
 }

@@ -24,9 +24,9 @@ export default function Input({
 			: undefined;
 
 	return (
-		<div className="w-full">
+		<div className="ds-field">
 			{label && (
-				<label htmlFor={inputId} className="label mb-1 px-0 py-0 text-sm font-medium">
+				<label htmlFor={inputId} className="ds-field-label">
 					{label}
 					{required && <span className="text-error"> *</span>}
 				</label>
@@ -42,16 +42,10 @@ export default function Input({
 				{...rest}
 			/>
 			{error ? (
-				<p id={`${inputId}-error`} role="alert" className="text-error mt-1.5 text-xs leading-5">
-					{error}
-				</p>
-			) : (
-				helperText && (
-					<p id={`${inputId}-helper`} className="text-base-content/60 mt-1.5 text-xs leading-5">
-						{helperText}
-					</p>
-				)
-			)}
+				<p id={`${inputId}-error`} role="alert" className="ds-field-note ds-field-note-error">{error}</p>
+			) : helperText ? (
+				<p id={`${inputId}-helper`} className="ds-field-note ds-field-note-muted">{helperText}</p>
+			) : null}
 		</div>
 	);
 }

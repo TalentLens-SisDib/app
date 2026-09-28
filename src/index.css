@@ -84,3 +84,60 @@
 		animation-iteration-count: 1 !important;
 	}
 }
+
+@layer components {
+	.tl-brand-mark {
+		@apply grid size-8 place-items-center rounded-xl bg-primary text-primary-content shadow-sm;
+		box-shadow: 0 8px 20px color-mix(in oklab, var(--color-primary) 24%, transparent);
+	}
+
+	.tl-wordmark {
+		@apply font-bold tracking-tight text-base-content;
+		letter-spacing: -0.04em;
+	}
+
+	.tl-eyebrow {
+		@apply text-primary flex items-center gap-2 text-xs font-bold tracking-[0.16em] uppercase;
+	}
+
+	.tl-eyebrow::before {
+		content: "";
+		@apply size-1.5 rounded-full bg-accent;
+		box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-accent) 18%, transparent);
+	}
+
+	.tl-insight-panel {
+		@apply relative overflow-hidden rounded-box border border-primary/15 bg-base-100 p-6 shadow-sm sm:p-8;
+		background-image: radial-gradient(circle at 88% 12%, color-mix(in oklab, var(--color-accent) 20%, transparent), transparent 25rem);
+	}
+
+	.tl-insight-panel::after {
+		content: "";
+		@apply pointer-events-none absolute inset-y-0 right-0 w-1/2 opacity-50;
+		background-image: linear-gradient(color-mix(in oklab, var(--color-primary) 10%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in oklab, var(--color-primary) 10%, transparent) 1px, transparent 1px);
+		background-size: 24px 24px;
+		mask-image: linear-gradient(to left, black, transparent);
+	}
+}
+
+@layer components {
+	.ds-field {
+		@apply w-full;
+	}
+
+	.ds-field-label {
+		@apply label mb-1 px-0 py-0 text-sm font-medium;
+	}
+
+	.ds-field-note {
+		@apply mt-1.5 text-xs leading-5;
+	}
+
+	.ds-field-note-muted {
+		@apply text-base-content/60;
+	}
+
+	.ds-field-note-error {
+		@apply text-error;
+	}
+}
