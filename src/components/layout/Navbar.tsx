@@ -2,8 +2,8 @@ import type {JSX} from "react";
 
 export default function Navbar(): JSX.Element {
 	return (
-		<header className="bg-base-100 border-base-300 sticky top-0 z-30 border-b">
-			<nav className="navbar px-2 sm:px-4">
+		<header className="bg-base-100/95 border-base-300 sticky top-0 z-30 border-b backdrop-blur">
+			<nav className="navbar mx-auto min-h-16 max-w-7xl px-2 sm:px-4">
 				<div className="navbar-start gap-1">
 					<label
 						htmlFor="my-drawer-4"
@@ -23,7 +23,7 @@ export default function Navbar(): JSX.Element {
 							<path d="M14 10l2 2l-2 2" />
 						</svg>
 					</label>
-					<span className="text-base-content px-2 text-lg font-semibold tracking-tight">
+					<span className="text-base-content px-2 text-lg font-bold tracking-tight">
 						TalentLens
 					</span>
 				</div>
@@ -51,7 +51,7 @@ export default function Navbar(): JSX.Element {
 						<button
 							type="button"
 							className="btn btn-ghost btn-circle avatar placeholder">
-							<div className="bg-neutral text-neutral-content w-8 rounded-full">
+							<div className="bg-primary text-primary-content w-8 rounded-full">
 								<span className="text-xs">TL</span>
 							</div>
 						</button>

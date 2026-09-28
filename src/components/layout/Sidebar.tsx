@@ -8,19 +8,21 @@ export default function Sidebar(): JSX.Element {
 				aria-label="close sidebar"
 				className="drawer-overlay"></label>
 
-			<div className="bg-base-200 border-base-300 is-drawer-close:w-16 is-drawer-open:w-64 flex min-h-full flex-col border-r">
+			<div className="bg-base-100 border-base-300 is-drawer-close:w-16 is-drawer-open:w-64 flex min-h-full flex-col border-r shadow-sm">
 				<div className="is-drawer-close:justify-center flex h-16 items-center px-4">
 					<span className="text-primary is-drawer-close:hidden text-sm font-bold tracking-wide uppercase">
 						Menu
 					</span>
 				</div>
 
-				<ul className="menu w-full grow gap-1 px-2">
-					<li className="menu-title is-drawer-close:hidden">Principal</li>
+				<ul className="menu w-full grow gap-1 px-2 py-3">
+					<li className="menu-title is-drawer-close:hidden text-base-content/45 px-3 text-[0.6875rem] font-semibold tracking-wider uppercase">
+						Principal
+					</li>
 					<li>
 						<a
 							aria-current="page"
-							className="menu-active is-drawer-close:tooltip is-drawer-close:tooltip-right"
+							className="menu-active is-drawer-close:tooltip is-drawer-close:tooltip-right is-drawer-close:flex is-drawer-close:items-center is-drawer-close:justify-center p-2"
 							data-tip="Homepage">
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
@@ -40,7 +42,7 @@ export default function Sidebar(): JSX.Element {
 
 					<li>
 						<a
-							className="is-drawer-close:tooltip is-drawer-close:tooltip-right"
+							className="is-drawer-close:tooltip is-drawer-close:tooltip-right is-drawer-close:flex is-drawer-close:items-center is-drawer-close:justify-center p-2"
 							data-tip="Settings">
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
@@ -61,7 +63,7 @@ export default function Sidebar(): JSX.Element {
 					</li>
 				</ul>
 
-				<div className="divider my-0"></div>
+				<div className="divider border-base-300 my-0"></div>
 				<p className="is-drawer-close:hidden text-base-content/50 px-4 py-3 text-xs">
 					v0.1.0
 				</p>

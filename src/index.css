@@ -1,108 +1,72 @@
 @import "tailwindcss";
-@plugin "daisyui";
 
-:root {
-	--text: #6b6375;
-	--text-h: #08060d;
-	--bg: #fff;
-	--border: #e5e4e7;
-	--code-bg: #f4f3ec;
-	--accent: #aa3bff;
-	--accent-bg: rgba(170, 59, 255, 0.1);
-	--accent-border: rgba(170, 59, 255, 0.5);
-	--social-bg: rgba(244, 243, 236, 0.5);
-	--shadow:
-		rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-	--sans: system-ui, "Segoe UI", Roboto, sans-serif;
-	--heading: system-ui, "Segoe UI", Roboto, sans-serif;
-	--mono: ui-monospace, Consolas, monospace;
-
-	font: 18px/145% var(--sans);
-	letter-spacing: 0.18px;
-	color-scheme: light dark;
-	color: var(--text);
-	background: var(--bg);
-	font-synthesis: none;
-	text-rendering: optimizeLegibility;
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
-
-	@media (max-width: 1024px) {
-		font-size: 16px;
-	}
+@plugin "daisyui" {
+	themes: talentlens --default;
 }
 
-@media (prefers-color-scheme: dark) {
+/* Central visual tokens for TalentLens. DaisyUI components consume these values. */
+@plugin "daisyui/theme" {
+	name: "talentlens";
+	default: true;
+	prefersdark: false;
+	color-scheme: light;
+
+	--color-base-100: oklch(99% 0.003 264);
+	--color-base-200: oklch(97.5% 0.006 264);
+	--color-base-300: oklch(92.8% 0.012 264);
+	--color-base-content: oklch(27% 0.024 264);
+	--color-primary: oklch(48% 0.16 258);
+	--color-primary-content: oklch(98.5% 0.005 258);
+	--color-secondary: oklch(50% 0.105 235);
+	--color-secondary-content: oklch(98.5% 0.005 235);
+	--color-accent: oklch(64% 0.12 175);
+	--color-accent-content: oklch(20% 0.025 175);
+	--color-neutral: oklch(31% 0.025 264);
+	--color-neutral-content: oklch(96% 0.006 264);
+	--color-info: oklch(61% 0.14 242);
+	--color-info-content: oklch(98% 0.01 242);
+	--color-success: oklch(59% 0.13 155);
+	--color-success-content: oklch(98% 0.01 155);
+	--color-warning: oklch(76% 0.14 83);
+	--color-warning-content: oklch(30% 0.06 65);
+	--color-error: oklch(58% 0.18 28);
+	--color-error-content: oklch(98% 0.008 28);
+
+	--radius-selector: 0.5rem;
+	--radius-field: 0.5rem;
+	--radius-box: 0.75rem;
+	--size-selector: 0.25rem;
+	--size-field: 0.25rem;
+	--border: 1px;
+	--depth: 0;
+	--noise: 0;
+}
+
+@theme {
+	--font-sans: "Inter", "Aptos", "Segoe UI", sans-serif;
+}
+
+@layer base {
 	:root {
-		--text: #9ca3af;
-		--text-h: #f3f4f6;
-		--bg: #16171d;
-		--border: #2e303a;
-		--code-bg: #1f2028;
-		--accent: #c084fc;
-		--accent-bg: rgba(192, 132, 252, 0.15);
-		--accent-border: rgba(192, 132, 252, 0.5);
-		--social-bg: rgba(47, 48, 58, 0.5);
-		--shadow:
-			rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+		font-synthesis: none;
+		text-rendering: optimizeLegibility;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
 	}
 
-	#social .button-icon {
-		filter: invert(1) brightness(2);
+	body {
+		@apply min-w-80 bg-base-200 font-sans text-base-content;
+	}
+
+	button,
+	a,
+	input,
+	select,
+	textarea {
+		@apply focus-visible:outline-primary focus-visible:outline-2 focus-visible:outline-offset-2;
 	}
 }
 
 #root {
 	min-height: 100svh;
-	display: flex;
-	flex-direction: column;
-}
-
-body {
-	margin: 0;
-}
-
-h1,
-h2 {
-	font-family: var(--heading);
-	font-weight: 500;
-	color: var(--text-h);
-}
-
-h1 {
-	font-size: 56px;
-	letter-spacing: -1.68px;
-	margin: 32px 0;
-	@media (max-width: 1024px) {
-		font-size: 36px;
-		margin: 20px 0;
-	}
-}
-h2 {
-	font-size: 24px;
-	line-height: 118%;
-	letter-spacing: -0.24px;
-	margin: 0 0 8px;
-	@media (max-width: 1024px) {
-		font-size: 20px;
-	}
-}
-p {
-	margin: 0;
-}
-
-code,
-.counter {
-	font-family: var(--mono);
-	display: inline-flex;
-	border-radius: 4px;
-	color: var(--text-h);
-}
-
-code {
-	font-size: 15px;
-	line-height: 135%;
-	padding: 4px 8px;
-	background: var(--code-bg);
 }
