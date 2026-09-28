@@ -1,5 +1,6 @@
 import Layout from "./components/layout/Layout";
 import PageHeader from "./components/layout/PageHeader";
+import {Button, Card} from "./components/ui";
 
 export default function App() {
 	return (
@@ -10,19 +11,16 @@ export default function App() {
 					{label: "Home", href: "/"},
 					{label: "Dashboard", href: "/dashboard"},
 				]}
-				actions={
-					<button type="button" className="btn btn-primary btn-sm">
-						Nova ação
-					</button>
-				}
+				actions={<Button size="sm">Nova ação</Button>}
 			/>
 
-			<div className="card border-base-300 bg-base-100 border shadow-sm">
-				<div className="card-body gap-2 p-5 sm:p-6">
-					<h2 className="card-title text-lg">Visão geral</h2>
-					<p className="text-base-content/65 text-sm">Conteúdo da página.</p>
-				</div>
-			</div>
+			<Card
+				title="Visão geral"
+				description="Acompanhe as informações e atividades mais relevantes da sua conta.">
+				<p className="text-base-content/70 text-sm leading-6">
+					Conteúdo da página.
+				</p>
+			</Card>
 		</Layout>
 	);
 }
