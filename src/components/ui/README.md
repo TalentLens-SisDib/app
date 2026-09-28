@@ -25,6 +25,7 @@ Página de demonstração com todas as variantes: rode `npm run dev` e acesse `/
 | `variant` | `"primary" \| "secondary" \| "ghost" \| "outline" \| "error" \| "success"` | — (neutro) | Aparência do botão |
 | `size` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Tamanho |
 | `loading` | `boolean` | `false` | Mostra spinner e força `disabled` (evita duplo clique) |
+| `fullWidth` | `boolean` | `false` | Aplica `w-full` |
 | `type` | `"button" \| "submit" \| "reset"` | `"button"` | — |
 | ...rest | `ButtonHTMLAttributes<HTMLButtonElement>` | — | `onClick`, `disabled`, `aria-*`, etc. |
 
@@ -89,7 +90,9 @@ Aceita também os demais atributos de `<span>` (`className`, `onClick`, etc.).
 |---|---|---|
 | `title` | `ReactNode` | Renderizado como `<h2 class="card-title">` |
 | `description` | `ReactNode` | Texto secundário abaixo do título |
-| `actions` | `ReactNode` | Renderizado em `.card-actions`, alinhado à direita |
+| `actions` | `ReactNode` | Renderizado em `.card-actions`, alinhado à direita, com borda superior |
+| `variant` | `"default" \| "subtle" \| "highlight"` | Estilo do card (padrão `"default"`; `subtle` para fundo neutro, `highlight` com borda primária) |
+| `padding` | `"sm" \| "md" \| "lg"` | Espaçamento interno do `card-body` (padrão `"md"`) |
 | `children` | `ReactNode` | Corpo livre do card |
 
 ---
