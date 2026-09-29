@@ -1,8 +1,19 @@
 import type {JSX} from "react";
-import {Link} from "react-router-dom";
+import {RiLogoutBoxRLine, RiUserLine} from "@remixicon/react";
+import {Link, useNavigate} from "react-router-dom";
+import {logout} from "../../api/services/auth";
+import {useSession} from "../../hooks/useSession";
 import Brand from "./Brand";
 
 export default function Navbar(): JSX.Element {
+	const navigate = useNavigate();
+	const session = useSession();
+
+	function handleLogout() {
+		logout();
+		navigate("/login", {replace: true});
+	}
+
 	return (
 		<header className="bg-base-100/90 border-base-300 sticky top-0 z-30 border-b backdrop-blur-xl">
 			<nav className="navbar mx-auto min-h-16 max-w-7xl px-2 sm:px-4">
@@ -26,9 +37,38 @@ export default function Navbar(): JSX.Element {
 					</button>
 
 					<div className="dropdown dropdown-end">
-						<button type="button" className="btn btn-ghost btn-circle avatar placeholder">
+						<button
+							type="button"
+							tabIndex={0}
+							className="btn btn-ghost btn-circle avatar placeholder">
 							<div className="bg-primary text-primary-content w-8 rounded-full"><span className="text-xs font-semibold">TL</span></div>
 						</button>
+						<ul
+							tabIndex={0}
+							className="menu dropdown-content bg-base-100 border-base-300 rounded-box z-20 mt-3 w-56 border p-2 shadow-sm">
+							{session && (
+								<li className="menu-title px-3 py-1.5">
+									<span className="text-base-content block truncate text-sm font-medium normal-case">
+										{session.user.name}
+									</span>
+									<span className="text-base-content/60 block truncate text-xs font-normal normal-case">
+										{session.user.email}
+									</span>
+								</li>
+							)}
+							<li>
+								<button type="button">
+									<RiUserLine className="size-4" />
+									Editar conta
+								</button>
+							</li>
+							<li>
+								<button type="button" onClick={handleLogout} className="text-error">
+									<RiLogoutBoxRLine className="size-4" />
+									Sair
+								</button>
+							</li>
+						</ul>
 					</div>
 				</div>
 			</nav>
