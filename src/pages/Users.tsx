@@ -1,19 +1,11 @@
 import {useMemo, useState, type FormEvent, type JSX} from "react";
 import {RiAddLine, RiDeleteBinLine, RiEditLine} from "@remixicon/react";
 import PageHeader from "../components/layout/PageHeader";
-import {Badge, Button, Card, Dialog, Input, Select} from "../components/ui";
+import {Alert, Badge, Button, Card, Dialog, Input, Select, Spinner} from "../components/ui";
 import {toast} from "../components/ui/toastStore";
-
-type UserRole = "admin" | "recruiter" | "manager";
-type UserStatus = "active" | "inactive";
-
-type UserRecord = {
-	id: string;
-	name: string;
-	email: string;
-	role: UserRole;
-	status: UserStatus;
-};
+import {isApiError} from "../api/errors";
+import {useUsers} from "../hooks/useUsers";
+import type {CreateUserInput, User, UserRole, UserStatus} from "../types/user";
 
 type FormState = {
 	name: string;
@@ -37,41 +29,21 @@ const emptyForm: FormState = {
 	status: "active",
 };
 
-const initialUsers: UserRecord[] = [
-	{
-		id: "1",
-		name: "Ana Souza",
-		email: "ana.souza@talentlens.com",
-		role: "admin",
-		status: "active",
-	},
-	{
-		id: "2",
-		name: "Bruno Lima",
-		email: "bruno.lima@talentlens.com",
-		role: "recruiter",
-		status: "active",
-	},
-	{
-		id: "3",
-		name: "Carla Mendes",
-		email: "carla.mendes@talentlens.com",
-		role: "manager",
-		status: "inactive",
-	},
-];
+const GENERIC_FORM_ERROR = "Não foi possível salvar o usuário. Tente novamente.";
+const GENERIC_DELETE_ERROR = "Não foi possível remover o usuário. Tente novamente.";
 
 export default function Users(): JSX.Element {
-	const [users, setUsers] = useState<UserRecord[]>(initialUsers);
+	const {users, loading, error, reload, create, update, remove} = useUsers();
 	const [search, setSearch] = useState("");
 
 	const [formOpen, setFormOpen] = useState(false);
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [form, setForm] = useState<FormState>(emptyForm);
 	const [errors, setErrors] = useState<FormErrors>({});
+	const [formError, setFormError] = useState<string | null>(null);
 	const [submitting, setSubmitting] = useState(false);
 
-	const [deleteTarget, setDeleteTarget] = useState<UserRecord | null>(null);
+	const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
 	const [deleting, setDeleting] = useState(false);
 
 	const filteredUsers = useMemo(() => {
@@ -79,8 +51,7 @@ export default function Users(): JSX.Element {
 		if (!term) return users;
 		return users.filter(
 			(user) =>
-				user.name.toLowerCase().includes(term) ||
-				user.email.toLowerCase().includes(term),
+				user.name.toLowerCase().includes(term) || user.email.toLowerCase().includes(term),
 		);
 	}, [users, search]);
 
@@ -88,23 +59,21 @@ export default function Users(): JSX.Element {
 		setEditingId(null);
 		setForm(emptyForm);
 		setErrors({});
+		setFormError(null);
 		setFormOpen(true);
 	}
 
-	function openEdit(user: UserRecord) {
+	function openEdit(user: User) {
 		setEditingId(user.id);
-		setForm({
-			name: user.name,
-			email: user.email,
-			role: user.role,
-			status: user.status,
-		});
+		setForm({name: user.name, email: user.email, role: user.role, status: user.status});
 		setErrors({});
+		setFormError(null);
 		setFormOpen(true);
 	}
 
-	function handleSubmit(event: FormEvent<HTMLFormElement>) {
+	async function handleSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
+		if (submitting) return;
 
 		const nextErrors: FormErrors = {};
 		if (!form.name.trim()) nextErrors.name = "Informe o nome.";
@@ -113,33 +82,38 @@ export default function Users(): JSX.Element {
 			nextErrors.email = "Informe um e-mail válido.";
 
 		setErrors(nextErrors);
+		setFormError(null);
 		if (Object.keys(nextErrors).length > 0) return;
 
 		setSubmitting(true);
-		window.setTimeout(() => {
+		try {
 			if (editingId) {
-				setUsers((prev) =>
-					prev.map((user) => (user.id === editingId ? {...user, ...form} : user)),
-				);
+				await update(editingId, form);
 				toast.success("Usuário atualizado com sucesso");
 			} else {
-				setUsers((prev) => [...prev, {id: crypto.randomUUID(), ...form}]);
+				await create(form as CreateUserInput);
 				toast.success("Usuário criado com sucesso");
 			}
-			setSubmitting(false);
 			setFormOpen(false);
-		}, 700);
+		} catch (err) {
+			setFormError(isApiError(err) ? err.message : GENERIC_FORM_ERROR);
+		} finally {
+			setSubmitting(false);
+		}
 	}
 
-	function confirmDelete() {
+	async function confirmDelete() {
 		if (!deleteTarget) return;
 		setDeleting(true);
-		window.setTimeout(() => {
-			setUsers((prev) => prev.filter((user) => user.id !== deleteTarget.id));
+		try {
+			await remove(deleteTarget.id);
 			toast.success("Usuário removido com sucesso");
-			setDeleting(false);
 			setDeleteTarget(null);
-		}, 700);
+		} catch (err) {
+			toast.error(isApiError(err) ? err.message : GENERIC_DELETE_ERROR);
+		} finally {
+			setDeleting(false);
+		}
 	}
 
 	return (
@@ -159,52 +133,121 @@ export default function Users(): JSX.Element {
 			/>
 
 			<Card padding="sm">
-				<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-					<div className="sm:max-w-xs sm:flex-1">
-						<Input
-							aria-label="Buscar por nome ou e-mail"
-							placeholder="Buscar por nome ou e-mail"
-							value={search}
-							onChange={(event) => setSearch(event.target.value)}
-						/>
+				{error ? (
+					<Alert variant="error" title="Não foi possível carregar os usuários">
+						<div className="flex flex-wrap items-center justify-between gap-3">
+							<span>{error}</span>
+							<Button size="xs" variant="ghost" onClick={reload}>
+								Tentar novamente
+							</Button>
+						</div>
+					</Alert>
+				) : loading ? (
+					<div className="flex flex-col items-center justify-center gap-3 py-16">
+						<Spinner />
+						<p className="text-base-content/60 text-sm">Carregando usuários...</p>
 					</div>
-					<p className="text-base-content/60 shrink-0 text-sm">
-						{filteredUsers.length} de {users.length} usuário(s)
-					</p>
-				</div>
-
-				{filteredUsers.length === 0 ? (
-					<p className="text-base-content/60 py-10 text-center text-sm">
-						Nenhum usuário encontrado.
-					</p>
+				) : users.length === 0 ? (
+					<div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+						<p className="text-base-content/60 text-sm">Nenhum usuário encontrado.</p>
+						<Button size="sm" onClick={openCreate}>
+							<RiAddLine className="size-4" />
+							Adicionar usuário
+						</Button>
+					</div>
 				) : (
-					<div className="overflow-x-auto">
-						<table className="table">
-							<thead>
-								<tr>
-									<th>Nome</th>
-									<th>E-mail</th>
-									<th>Papel</th>
-									<th>Status</th>
-									<th className="text-right">Ações</th>
-								</tr>
-							</thead>
-							<tbody>
-								{filteredUsers.map((user) => (
-									<tr key={user.id}>
-										<td className="font-medium">{user.name}</td>
-										<td className="text-base-content/70">{user.email}</td>
-										<td>{roleLabel[user.role]}</td>
-										<td>
-											<Badge
-												variant={
-													user.status === "active" ? "success" : "ghost"
-												}>
-												{user.status === "active" ? "Ativo" : "Inativo"}
-											</Badge>
-										</td>
-										<td>
-											<div className="flex justify-end gap-1">
+					<>
+						<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+							<div className="sm:max-w-xs sm:flex-1">
+								<Input
+									aria-label="Buscar por nome ou e-mail"
+									placeholder="Buscar por nome ou e-mail"
+									value={search}
+									onChange={(event) => setSearch(event.target.value)}
+								/>
+							</div>
+							<p className="text-base-content/60 shrink-0 text-sm">
+								{filteredUsers.length} de {users.length} usuário(s)
+							</p>
+						</div>
+
+						{filteredUsers.length === 0 ? (
+							<p className="text-base-content/60 py-10 text-center text-sm">
+								Nenhum usuário encontrado para essa busca.
+							</p>
+						) : (
+							<>
+								{/* Desktop/tablet: tabela */}
+								<div className="hidden overflow-x-auto sm:block">
+									<table className="table">
+										<thead>
+											<tr>
+												<th>Nome</th>
+												<th>E-mail</th>
+												<th>Papel</th>
+												<th>Status</th>
+												<th className="text-right">Ações</th>
+											</tr>
+										</thead>
+										<tbody>
+											{filteredUsers.map((user) => (
+												<tr key={user.id}>
+													<td className="font-medium">{user.name}</td>
+													<td className="text-base-content/70">{user.email}</td>
+													<td>{roleLabel[user.role]}</td>
+													<td>
+														<Badge
+															variant={
+																user.status === "active" ? "success" : "ghost"
+															}>
+															{user.status === "active" ? "Ativo" : "Inativo"}
+														</Badge>
+													</td>
+													<td>
+														<div className="flex justify-end gap-1">
+															<button
+																type="button"
+																aria-label={`Editar ${user.name}`}
+																onClick={() => openEdit(user)}
+																className="btn btn-ghost btn-sm btn-square">
+																<RiEditLine className="size-4" />
+															</button>
+															<button
+																type="button"
+																aria-label={`Remover ${user.name}`}
+																onClick={() => setDeleteTarget(user)}
+																className="btn btn-ghost btn-sm btn-square text-error">
+																<RiDeleteBinLine className="size-4" />
+															</button>
+														</div>
+													</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+								</div>
+
+								{/* Mobile: lista de cards, sem overflow horizontal */}
+								<ul className="list sm:hidden">
+									{filteredUsers.map((user) => (
+										<li key={user.id} className="list-row items-center">
+											<div className="list-col-grow min-w-0">
+												<p className="truncate font-medium">{user.name}</p>
+												<p className="text-base-content/60 truncate text-sm">
+													{user.email}
+												</p>
+												<div className="mt-1.5 flex items-center gap-2 text-sm">
+													<span className="text-base-content/70">
+														{roleLabel[user.role]}
+													</span>
+													<Badge
+														size="sm"
+														variant={user.status === "active" ? "success" : "ghost"}>
+														{user.status === "active" ? "Ativo" : "Inativo"}
+													</Badge>
+												</div>
+											</div>
+											<div className="flex gap-1">
 												<button
 													type="button"
 													aria-label={`Editar ${user.name}`}
@@ -220,12 +263,12 @@ export default function Users(): JSX.Element {
 													<RiDeleteBinLine className="size-4" />
 												</button>
 											</div>
-										</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
-					</div>
+										</li>
+									))}
+								</ul>
+							</>
+						)}
+					</>
 				)}
 			</Card>
 
@@ -235,10 +278,7 @@ export default function Users(): JSX.Element {
 				title={editingId ? "Editar usuário" : "Criar usuário"}
 				actions={
 					<>
-						<Button
-							variant="ghost"
-							disabled={submitting}
-							onClick={() => setFormOpen(false)}>
+						<Button variant="ghost" disabled={submitting} onClick={() => setFormOpen(false)}>
 							Cancelar
 						</Button>
 						<Button type="submit" form="user-form" loading={submitting}>
@@ -246,18 +286,18 @@ export default function Users(): JSX.Element {
 						</Button>
 					</>
 				}>
-				<form
-					id="user-form"
-					className="space-y-4"
-					noValidate
-					onSubmit={handleSubmit}>
+				<form id="user-form" className="space-y-4" noValidate onSubmit={handleSubmit}>
+					{formError && (
+						<Alert variant="error" title="Não foi possível salvar">
+							{formError}
+						</Alert>
+					)}
+
 					<Input
 						label="Nome"
 						placeholder="Nome completo"
 						value={form.name}
-						onChange={(event) =>
-							setForm((prev) => ({...prev, name: event.target.value}))
-						}
+						onChange={(event) => setForm((prev) => ({...prev, name: event.target.value}))}
 						error={errors.name}
 					/>
 					<Input
@@ -265,9 +305,7 @@ export default function Users(): JSX.Element {
 						type="email"
 						placeholder="nome@empresa.com"
 						value={form.email}
-						onChange={(event) =>
-							setForm((prev) => ({...prev, email: event.target.value}))
-						}
+						onChange={(event) => setForm((prev) => ({...prev, email: event.target.value}))}
 						error={errors.email}
 					/>
 					<div className="grid gap-4 sm:grid-cols-2">
@@ -275,10 +313,7 @@ export default function Users(): JSX.Element {
 							label="Papel"
 							value={form.role}
 							onChange={(event) =>
-								setForm((prev) => ({
-									...prev,
-									role: event.target.value as UserRole,
-								}))
+								setForm((prev) => ({...prev, role: event.target.value as UserRole}))
 							}>
 							<option value="admin">Administrador</option>
 							<option value="recruiter">Recrutador</option>
@@ -288,10 +323,7 @@ export default function Users(): JSX.Element {
 							label="Status"
 							value={form.status}
 							onChange={(event) =>
-								setForm((prev) => ({
-									...prev,
-									status: event.target.value as UserStatus,
-								}))
+								setForm((prev) => ({...prev, status: event.target.value as UserStatus}))
 							}>
 							<option value="active">Ativo</option>
 							<option value="inactive">Inativo</option>
@@ -306,10 +338,7 @@ export default function Users(): JSX.Element {
 				title="Remover usuário?"
 				actions={
 					<>
-						<Button
-							variant="ghost"
-							disabled={deleting}
-							onClick={() => setDeleteTarget(null)}>
+						<Button variant="ghost" disabled={deleting} onClick={() => setDeleteTarget(null)}>
 							Cancelar
 						</Button>
 						<Button variant="error" loading={deleting} onClick={confirmDelete}>
@@ -318,8 +347,8 @@ export default function Users(): JSX.Element {
 					</>
 				}>
 				<p>
-					Tem certeza que deseja remover <strong>{deleteTarget?.name}</strong>?
-					Essa ação não poderá ser desfeita.
+					Tem certeza que deseja remover <strong>{deleteTarget?.name}</strong>? Essa ação não
+					poderá ser desfeita.
 				</p>
 			</Dialog>
 		</>

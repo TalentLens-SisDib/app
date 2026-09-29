@@ -1,5 +1,5 @@
 import {setAuthToken} from "./client";
-import type {User} from "./types/user";
+import type {User} from "../types/user";
 
 /**
  * Sessão mockada, persistida em localStorage enquanto não existe

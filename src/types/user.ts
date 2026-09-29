@@ -8,3 +8,6 @@ export type User = {
 	role: UserRole;
 	status: UserStatus;
 };
+
+export type CreateUserInput = Omit<User, "id">;
+export type UpdateUserInput = Partial<CreateUserInput>;
