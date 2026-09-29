@@ -1,36 +1,49 @@
 import {useState, type FormEvent, type JSX} from "react";
+import {useNavigate} from "react-router-dom";
 import Brand from "../components/layout/Brand";
 import {Alert, Button, Card, Input} from "../components/ui";
+import {isApiError} from "../api/errors";
+import {login} from "../api/services/auth";
 
 type FormErrors = {
 	email?: string;
 	password?: string;
 };
 
+const GENERIC_ERROR = "Não foi possível entrar. Tente novamente.";
+
 export default function Login(): JSX.Element {
+	const navigate = useNavigate();
+
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [remember, setRemember] = useState(false);
 	const [errors, setErrors] = useState<FormErrors>({});
 	const [loading, setLoading] = useState(false);
-	const [authenticationError, setAuthenticationError] = useState(false);
+	const [formError, setFormError] = useState<string | null>(null);
 
-	function handleSubmit(event: FormEvent<HTMLFormElement>) {
+	async function handleSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
+		if (loading) return;
+
 		const nextErrors: FormErrors = {};
 		if (!email.trim()) nextErrors.email = "Informe seu e-mail.";
 		else if (!/^\S+@\S+\.\S+$/.test(email)) nextErrors.email = "Informe um e-mail válido.";
 		if (!password) nextErrors.password = "Informe sua senha.";
 
 		setErrors(nextErrors);
-		setAuthenticationError(false);
+		setFormError(null);
 		if (Object.keys(nextErrors).length > 0) return;
 
 		setLoading(true);
-		window.setTimeout(() => {
+		try {
+			await login({email, password});
+			navigate("/", {replace: true});
+		} catch (error) {
+			setFormError(isApiError(error) ? error.message : GENERIC_ERROR);
+		} finally {
 			setLoading(false);
-			setAuthenticationError(true);
-		}, 900);
+		}
 	}
 
 	return (
@@ -66,9 +79,9 @@ export default function Login(): JSX.Element {
 
 					<Card variant="subtle" padding="lg">
 						<form className="space-y-5" noValidate onSubmit={handleSubmit}>
-							{authenticationError && (
+							{formError && (
 								<Alert variant="error" title="Não foi possível entrar">
-									Verifique seu e-mail e senha e tente novamente.
+									{formError}
 								</Alert>
 							)}
 
