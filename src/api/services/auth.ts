@@ -1,6 +1,6 @@
 import {ApiError} from "../errors";
 import {clearSession, getSession, setSession} from "../session";
-import type {User} from "../types/user";
+import type {User} from "../../types/user";
 
 export type LoginCredentials = {
 	email: string;
