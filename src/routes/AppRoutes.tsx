@@ -6,6 +6,7 @@ import Dashboard from "../pages/Dashboard";
 import Login from "../pages/Login";
 import NotFound from "../pages/NotFound";
 import UiPlayground from "../pages/UiPlayground";
+import Users from "../pages/Users";
 
 export default function AppRoutes(): JSX.Element {
 	return (
@@ -17,6 +18,7 @@ export default function AppRoutes(): JSX.Element {
 			<Route element={<AppLayout />}>
 				<Route path="/" element={<Dashboard />} />
 				<Route path="/ui-playground" element={<UiPlayground />} />
+				<Route path="/usuarios" element={<Users />} />
 			</Route>
 
 			<Route path="*" element={<NotFound />} />

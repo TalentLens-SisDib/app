@@ -1,3 +1,4 @@
+import {RiHomeLine, RiUserLine} from "@remixicon/react";
 import type {JSX} from "react";
 import {NavLink} from "react-router-dom";
 
@@ -33,46 +34,28 @@ export default function Sidebar(): JSX.Element {
 									.join(" ")
 							}
 							data-tip="Homepage">
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								viewBox="0 0 24 24"
-								strokeLinejoin="round"
-								strokeLinecap="round"
-								strokeWidth="2"
-								fill="none"
-								stroke="currentColor"
-								className="inline-block size-4 shrink-0">
-								<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path>
-								<path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-							</svg>
+							<RiHomeLine />
 							<span className="is-drawer-close:hidden">Homepage</span>
 						</NavLink>
 					</li>
 
 					<li>
-						<a
-							className="is-drawer-close:tooltip is-drawer-close:tooltip-right is-drawer-close:flex is-drawer-close:items-center is-drawer-close:justify-center p-2"
-							data-tip="Settings">
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								viewBox="0 0 24 24"
-								strokeLinejoin="round"
-								strokeLinecap="round"
-								strokeWidth="2"
-								fill="none"
-								stroke="currentColor"
-								className="inline-block size-4 shrink-0">
-								<path d="M20 7h-9"></path>
-								<path d="M14 17H5"></path>
-								<circle cx="17" cy="17" r="3"></circle>
-								<circle cx="7" cy="7" r="3"></circle>
-							</svg>
-							<span className="is-drawer-close:hidden">Settings</span>
-						</a>
+						<NavLink
+							to="/usuarios"
+							className={({isActive}) =>
+								[
+									"is-drawer-close:tooltip is-drawer-close:tooltip-right is-drawer-close:flex is-drawer-close:items-center is-drawer-close:justify-center p-2",
+									isActive && "menu-active",
+								]
+									.filter(Boolean)
+									.join(" ")
+							}
+							data-tip="Usuários">
+							<RiUserLine />
+							<span className="is-drawer-close:hidden">Usuários</span>
+						</NavLink>
 					</li>
 				</ul>
-
-				<div className="divider border-base-300 my-0"></div>
 				<p className="is-drawer-close:hidden text-base-content/50 px-4 py-3 text-xs">
 					v0.1.0
 				</p>
