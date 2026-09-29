@@ -1,5 +1,4 @@
 import {useState, type JSX, type ReactNode} from "react";
-import Layout from "../components/layout/Layout";
 import PageHeader from "../components/layout/PageHeader";
 import Alert from "../components/ui/Alert";
 import Badge from "../components/ui/Badge";
@@ -42,8 +41,7 @@ export default function UiPlayground(): JSX.Element {
 	}
 
 	return (
-		<Layout>
-			<div className="space-y-10">
+		<div className="space-y-10">
 			<PageHeader
 				title="UI Playground"
 				breadcrumbs={[
@@ -204,7 +202,6 @@ export default function UiPlayground(): JSX.Element {
 					warning
 				</Button>
 			</Section>
-			</div>
-		</Layout>
+		</div>
 	);
 }

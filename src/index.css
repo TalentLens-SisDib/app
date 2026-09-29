@@ -141,3 +141,10 @@
 		@apply text-error;
 	}
 }
+
+@layer components {
+	.tl-brand-mark-inverse {
+		@apply bg-base-100 text-primary;
+		box-shadow: 0 8px 20px color-mix(in oklab, var(--color-base-100) 18%, transparent);
+	}
+}

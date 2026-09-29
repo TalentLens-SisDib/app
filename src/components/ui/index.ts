@@ -8,7 +8,7 @@ export {default as Badge} from "./Badge";
 export type {BadgeProps, BadgeVariant, BadgeSize} from "./Badge";
 
 export {default as Card} from "./Card";
-export type {CardProps} from "./Card";
+export type {CardProps, CardVariant, CardPadding} from "./Card";
 
 export {default as Input} from "./Input";
 export type {InputProps} from "./Input";
