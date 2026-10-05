@@ -1,51 +1,22 @@
-import {mockUsers} from "../../mocks/users";
+import {apiClient} from "../client";
 import type {CreateUserInput, UpdateUserInput, User} from "../../types/user";
-import {ApiError} from "../errors";
 
-// Mock: sem backend ainda, as operações acontecem sobre uma cópia em
-// memória de `mocks/users.ts`. Trocar o corpo destas funções por chamadas
-// em `apiClient` quando a API existir — a assinatura não muda.
-let users: User[] = [...mockUsers];
-
-function delay(ms: number): Promise<void> {
-	return new Promise((resolve) => window.setTimeout(resolve, ms));
+export function getUsers(): Promise<User[]> {
+	return apiClient.get<User[]>("/users");
 }
 
-function notFound(id: string): ApiError {
-	return new ApiError(`Usuário "${id}" não encontrado.`, "not_found", 404);
+export function getUser(id: number): Promise<User> {
+	return apiClient.get<User>(`/users/${id}`);
 }
 
-export async function getUsers(): Promise<User[]> {
-	await delay(500);
-	return users;
+export function createUser(data: CreateUserInput): Promise<User> {
+	return apiClient.post<User>("/users", data);
 }
 
-export async function getUser(id: string): Promise<User> {
-	await delay(300);
-	const user = users.find((item) => item.id === id);
-	if (!user) throw notFound(id);
-	return user;
+export function updateUser(id: number, data: UpdateUserInput): Promise<User> {
+	return apiClient.patch<User>(`/users/${id}`, data);
 }
 
-export async function createUser(data: CreateUserInput): Promise<User> {
-	await delay(500);
-	const user: User = {id: crypto.randomUUID(), ...data};
-	users = [...users, user];
-	return user;
-}
-
-export async function updateUser(id: string, data: UpdateUserInput): Promise<User> {
-	await delay(500);
-	const index = users.findIndex((item) => item.id === id);
-	if (index === -1) throw notFound(id);
-
-	const updated: User = {...users[index], ...data};
-	users = users.map((item, i) => (i === index ? updated : item));
-	return updated;
-}
-
-export async function deleteUser(id: string): Promise<void> {
-	await delay(500);
-	if (!users.some((item) => item.id === id)) throw notFound(id);
-	users = users.filter((item) => item.id !== id);
+export function deleteUser(id: number): Promise<void> {
+	return apiClient.delete<void>(`/users/${id}`);
 }

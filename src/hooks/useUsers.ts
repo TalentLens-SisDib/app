@@ -42,13 +42,13 @@ export function useUsers() {
 		return user;
 	}, []);
 
-	const update = useCallback(async (id: string, data: UpdateUserInput) => {
+	const update = useCallback(async (id: number, data: UpdateUserInput) => {
 		const user = await updateUser(id, data);
 		setUsers((prev) => prev.map((item) => (item.id === id ? user : item)));
 		return user;
 	}, []);
 
-	const remove = useCallback(async (id: string) => {
+	const remove = useCallback(async (id: number) => {
 		await deleteUser(id);
 		setUsers((prev) => prev.filter((item) => item.id !== id));
 	}, []);
