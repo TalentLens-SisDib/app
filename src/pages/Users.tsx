@@ -5,28 +5,27 @@ import {Alert, Badge, Button, Card, Dialog, Input, Select, Spinner} from "../com
 import {toast} from "../components/ui/toastStore";
 import {isApiError} from "../api/errors";
 import {useUsers} from "../hooks/useUsers";
-import type {CreateUserInput, User, UserRole, UserStatus} from "../types/user";
+import type {CreateUserInput, User, UserRole} from "../types/user";
 
 type FormState = {
 	name: string;
 	email: string;
+	password: string;
 	role: UserRole;
-	status: UserStatus;
 };
 
-type FormErrors = Partial<Record<"name" | "email", string>>;
+type FormErrors = Partial<Record<"name" | "email" | "password", string>>;
 
 const roleLabel: Record<UserRole, string> = {
-	admin: "Administrador",
-	recruiter: "Recrutador",
-	manager: "Gestor",
+	Admin: "Administrador",
+	Recruiter: "Recrutador",
 };
 
 const emptyForm: FormState = {
 	name: "",
 	email: "",
-	role: "recruiter",
-	status: "active",
+	password: "",
+	role: "Recruiter",
 };
 
 const GENERIC_FORM_ERROR = "Não foi possível salvar o usuário. Tente novamente.";
@@ -37,7 +36,7 @@ export default function Users(): JSX.Element {
 	const [search, setSearch] = useState("");
 
 	const [formOpen, setFormOpen] = useState(false);
-	const [editingId, setEditingId] = useState<string | null>(null);
+	const [editingId, setEditingId] = useState<number | null>(null);
 	const [form, setForm] = useState<FormState>(emptyForm);
 	const [errors, setErrors] = useState<FormErrors>({});
 	const [formError, setFormError] = useState<string | null>(null);
@@ -65,7 +64,7 @@ export default function Users(): JSX.Element {
 
 	function openEdit(user: User) {
 		setEditingId(user.id);
-		setForm({name: user.name, email: user.email, role: user.role, status: user.status});
+		setForm({name: user.name, email: user.email, password: "", role: user.role});
 		setErrors({});
 		setFormError(null);
 		setFormOpen(true);
@@ -80,6 +79,10 @@ export default function Users(): JSX.Element {
 		if (!form.email.trim()) nextErrors.email = "Informe o e-mail.";
 		else if (!/^\S+@\S+\.\S+$/.test(form.email))
 			nextErrors.email = "Informe um e-mail válido.";
+		if (!editingId && form.password.length < 8)
+			nextErrors.password = "A senha deve ter ao menos 8 caracteres.";
+		else if (editingId && form.password && form.password.length < 8)
+			nextErrors.password = "A senha deve ter ao menos 8 caracteres.";
 
 		setErrors(nextErrors);
 		setFormError(null);
@@ -88,7 +91,8 @@ export default function Users(): JSX.Element {
 		setSubmitting(true);
 		try {
 			if (editingId) {
-				await update(editingId, form);
+				const {password, ...rest} = form;
+				await update(editingId, password ? {...rest, password} : rest);
 				toast.success("Usuário atualizado com sucesso");
 			} else {
 				await create(form as CreateUserInput);
@@ -185,7 +189,6 @@ export default function Users(): JSX.Element {
 												<th>Nome</th>
 												<th>E-mail</th>
 												<th>Papel</th>
-												<th>Status</th>
 												<th className="text-right">Ações</th>
 											</tr>
 										</thead>
@@ -194,13 +197,9 @@ export default function Users(): JSX.Element {
 												<tr key={user.id}>
 													<td className="font-medium">{user.name}</td>
 													<td className="text-base-content/70">{user.email}</td>
-													<td>{roleLabel[user.role]}</td>
 													<td>
-														<Badge
-															variant={
-																user.status === "active" ? "success" : "ghost"
-															}>
-															{user.status === "active" ? "Ativo" : "Inativo"}
+														<Badge variant={user.role === "Admin" ? "primary" : "ghost"}>
+															{roleLabel[user.role]}
 														</Badge>
 													</td>
 													<td>
@@ -237,13 +236,8 @@ export default function Users(): JSX.Element {
 													{user.email}
 												</p>
 												<div className="mt-1.5 flex items-center gap-2 text-sm">
-													<span className="text-base-content/70">
+													<Badge size="sm" variant={user.role === "Admin" ? "primary" : "ghost"}>
 														{roleLabel[user.role]}
-													</span>
-													<Badge
-														size="sm"
-														variant={user.status === "active" ? "success" : "ghost"}>
-														{user.status === "active" ? "Ativo" : "Inativo"}
 													</Badge>
 												</div>
 											</div>
@@ -308,27 +302,23 @@ export default function Users(): JSX.Element {
 						onChange={(event) => setForm((prev) => ({...prev, email: event.target.value}))}
 						error={errors.email}
 					/>
-					<div className="grid gap-4 sm:grid-cols-2">
-						<Select
-							label="Papel"
-							value={form.role}
-							onChange={(event) =>
-								setForm((prev) => ({...prev, role: event.target.value as UserRole}))
-							}>
-							<option value="admin">Administrador</option>
-							<option value="recruiter">Recrutador</option>
-							<option value="manager">Gestor</option>
-						</Select>
-						<Select
-							label="Status"
-							value={form.status}
-							onChange={(event) =>
-								setForm((prev) => ({...prev, status: event.target.value as UserStatus}))
-							}>
-							<option value="active">Ativo</option>
-							<option value="inactive">Inativo</option>
-						</Select>
-					</div>
+					<Input
+						label="Senha"
+						type="password"
+						placeholder={editingId ? "Deixe em branco para manter" : "Mínimo de 8 caracteres"}
+						value={form.password}
+						onChange={(event) => setForm((prev) => ({...prev, password: event.target.value}))}
+						error={errors.password}
+					/>
+					<Select
+						label="Papel"
+						value={form.role}
+						onChange={(event) =>
+							setForm((prev) => ({...prev, role: event.target.value as UserRole}))
+						}>
+						<option value="Admin">Administrador</option>
+						<option value="Recruiter">Recrutador</option>
+					</Select>
 				</form>
 			</Dialog>
 

@@ -1,13 +1,20 @@
-export type UserRole = "admin" | "recruiter" | "manager";
-export type UserStatus = "active" | "inactive";
+export type UserRole = "Admin" | "Recruiter";
 
 export type User = {
-	id: string;
+	id: number;
 	name: string;
 	email: string;
 	role: UserRole;
-	status: UserStatus;
+	companyId: number;
 };
 
-export type CreateUserInput = Omit<User, "id">;
-export type UpdateUserInput = Partial<CreateUserInput>;
+export type CreateUserInput = {
+	email: string;
+	name?: string;
+	password: string;
+	role?: UserRole;
+};
+
+export type UpdateUserInput = Partial<Omit<CreateUserInput, "password">> & {
+	password?: string;
+};

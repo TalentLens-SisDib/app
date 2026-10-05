@@ -1,52 +1,56 @@
+import {apiClient} from "../client";
 import {ApiError} from "../errors";
 import {clearSession, getSession, setSession} from "../session";
-import type {User} from "../../types/user";
+import type {User, UserRole} from "../../types/user";
 
 export type LoginCredentials = {
 	email: string;
 	password: string;
 };
 
-type MockAccount = {
-	password: string;
-	user: User;
+type LoginResponse = {
+	accessToken: string;
+	tokenType: "Bearer";
+	expiresIn: number;
 };
 
-// Mock de autenticação: ainda não há backend, então as credenciais são
-// validadas aqui. Trocar por uma chamada em `apiClient.post("/auth/login", ...)`
-// quando a API existir — a assinatura de `login` não muda.
-const mockAccounts: MockAccount[] = [
-	{
-		password: "talentlens123",
-		user: {
-			id: "1",
-			name: "Ana Souza",
-			email: "ana.souza@talentlens.com",
-			role: "admin",
-			status: "active",
-		},
-	},
-];
+// Claims do JWT emitido por POST /login (ver AuthPayload na API). O token
+// não é verificado no cliente — só decodificado para extrair os dados do
+// usuário autenticado, já que a API não expõe um endpoint "/me".
+type AccessTokenClaims = {
+	sub: number;
+	name: string;
+	email: string;
+	role: UserRole;
+	companyId: number;
+};
 
-function delay(ms: number): Promise<void> {
-	return new Promise((resolve) => window.setTimeout(resolve, ms));
+function decodeAccessToken(token: string): AccessTokenClaims {
+	const payload = token.split(".")[1];
+	if (!payload) throw new ApiError("Token de acesso inválido.", "server");
+
+	try {
+		const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+		return JSON.parse(atob(base64)) as AccessTokenClaims;
+	} catch {
+		throw new ApiError("Token de acesso inválido.", "server");
+	}
 }
 
 export async function login(credentials: LoginCredentials): Promise<User> {
-	await delay(700);
+	const response = await apiClient.post<LoginResponse>("/login", credentials);
+	const claims = decodeAccessToken(response.accessToken);
 
-	const account = mockAccounts.find(
-		(entry) =>
-			entry.user.email.toLowerCase() === credentials.email.trim().toLowerCase() &&
-			entry.password === credentials.password,
-	);
+	const user: User = {
+		id: claims.sub,
+		name: claims.name,
+		email: claims.email,
+		role: claims.role,
+		companyId: claims.companyId,
+	};
 
-	if (!account) {
-		throw new ApiError("E-mail ou senha inválidos.", "unauthorized", 401);
-	}
-
-	setSession(account.user, `mock-token-${account.user.id}`);
-	return account.user;
+	setSession(user, response.accessToken);
+	return user;
 }
 
 export function logout(): void {
