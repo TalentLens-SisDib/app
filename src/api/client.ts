@@ -14,6 +14,14 @@ export type ApiRequestOptions = Omit<RequestInit, "body"> & {
 	body?: unknown;
 };
 
+/**
+ * `FormData` passa intacto e sem `Content-Type`: o browser precisa definir
+ * o header com o `boundary` do multipart.
+ */
+function isMultipart(body: unknown): body is FormData {
+	return typeof FormData !== "undefined" && body instanceof FormData;
+}
+
 type ErrorBody = {message?: string; details?: unknown};
 
 async function readErrorBody(response: Response): Promise<ErrorBody> {
@@ -40,16 +48,24 @@ async function request<T>(
 
 	let response: Response;
 	try {
+		const multipart = isMultipart(body);
+
 		response = await fetch(`${baseUrl}${path}`, {
 			...rest,
 			headers: {
-				"Content-Type": "application/json",
+				...(multipart ? {} : {"Content-Type": "application/json"}),
 				...(authToken ? {Authorization: `Bearer ${authToken}`} : {}),
 				...headers,
 			},
-			body: body !== undefined ? JSON.stringify(body) : undefined,
+			body: multipart
+				? body
+				: body !== undefined
+					? JSON.stringify(body)
+					: undefined,
 		});
-	} catch {
+	} catch (error) {
+		// Cancelamento não é falha de rede: o chamador precisa do AbortError.
+		if (error instanceof DOMException && error.name === "AbortError") throw error;
 		throw new ApiError("Não foi possível conectar à API.", "network");
 	}
 

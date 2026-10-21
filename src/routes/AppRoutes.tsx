@@ -3,6 +3,7 @@ import {Route, Routes} from "react-router-dom";
 import AppLayout from "../components/layout/AppLayout";
 import AuthLayout from "../components/layout/AuthLayout";
 import Dashboard from "../pages/Dashboard";
+import ImportResumes from "../pages/ImportResumes";
 import Login from "../pages/Login";
 import NotFound from "../pages/NotFound";
 import UiPlayground from "../pages/UiPlayground";
@@ -17,6 +18,7 @@ export default function AppRoutes(): JSX.Element {
 
 			<Route element={<AppLayout />}>
 				<Route path="/" element={<Dashboard />} />
+				<Route path="/candidatos/importar" element={<ImportResumes />} />
 				<Route path="/ui-playground" element={<UiPlayground />} />
 				<Route path="/usuarios" element={<Users />} />
 			</Route>
