@@ -148,3 +148,34 @@
 		box-shadow: 0 8px 20px color-mix(in oklab, var(--color-base-100) 18%, transparent);
 	}
 }
+
+@layer components {
+	/* Tons de estado para superfícies e textos fora de componentes DaisyUI
+	   (cards de resumo e linhas de resultado da importação de currículos). */
+	.tl-tone-ok {
+		color: color-mix(in oklab, var(--color-success) 62%, black);
+	}
+
+	.tl-tone-attn {
+		color: var(--color-warning-content);
+	}
+
+	.tl-tone-err {
+		color: color-mix(in oklab, var(--color-error) 74%, black);
+	}
+
+	.tl-surface-ok {
+		background-color: color-mix(in oklab, var(--color-success) 13%, var(--color-base-100));
+		border-color: color-mix(in oklab, var(--color-success) 25%, transparent);
+	}
+
+	.tl-surface-attn {
+		background-color: color-mix(in oklab, var(--color-warning) 20%, var(--color-base-100));
+		border-color: color-mix(in oklab, var(--color-warning) 45%, transparent);
+	}
+
+	.tl-surface-err {
+		background-color: color-mix(in oklab, var(--color-error) 11%, var(--color-base-100));
+		border-color: color-mix(in oklab, var(--color-error) 25%, transparent);
+	}
+}
