@@ -17,6 +17,7 @@ api/
     ├── jobOpenings.ts getJobOpenings, getJobOpening, createJobOpening, updateJobOpening, deleteJobOpening
     ├── steps.ts       getSteps, createStep, updateStep, deleteStep (aninhado em /job-openings/{id})
     ├── interviews.ts  getInterviews, createInterview, updateInterview, deleteInterview (aninhado em /steps/{id})
+    ├── applications.ts  ⚠ MOCK — getApplications, getProfileApplications, createApplication, deleteApplication
     └── resumeImports.ts  seleção de arquivos + importação de currículos (upload e polling)
 ```
 
@@ -45,6 +46,22 @@ Os recursos são aninhados na API: **vaga → etapas (`steps`) → registros de 
 - Cada usuário tem no máximo **um** registro de entrevista por etapa, e só o autor edita ou remove o
   próprio registro. Vaga (e, na UI, suas etapas) só é gerenciada pelo criador ou por um Admin
   (`utils/permissions.ts`).
+
+## Candidaturas (mock)
+
+A API ainda não expõe o vínculo candidato × vaga (o model `JobApplication` existe no banco, sem
+endpoints). `services/applications.ts` simula o contrato proposto, guardando os dados em
+`localStorage` (`mock_job_applications`) — **visível só neste navegador**:
+
+```text
+GET    /job-openings/{id}/applications              → JobApplication[]
+POST   /job-openings/{id}/applications  {profileId} → JobApplication (409 se já vinculado)
+DELETE /job-openings/{id}/applications/{profileId}
+```
+
+`getProfileApplications` corresponde ao campo `applications` de `GET /profiles/{id}`. Quando a API
+existir, troque o corpo das funções por `apiClient` — a assinatura não muda (`profileName` em
+`CreateApplicationInput` deixa de ser necessário).
 
 ## Importação de currículos (polling)
 

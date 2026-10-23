@@ -7,8 +7,10 @@ import {
 	RiEditLine,
 	RiFileTextLine,
 	RiFlowChart,
+	RiTeamLine,
 } from "@remixicon/react";
 import PageHeader from "../components/layout/PageHeader";
+import CandidatesPanel from "../components/jobOpenings/CandidatesPanel";
 import InterviewsPanel from "../components/jobOpenings/InterviewsPanel";
 import JobOpeningFormDialog from "../components/jobOpenings/JobOpeningFormDialog";
 import JobOverviewPanel from "../components/jobOpenings/JobOverviewPanel";
@@ -16,6 +18,7 @@ import StepFormDialog from "../components/jobOpenings/StepFormDialog";
 import {Alert, Button, Card, Dialog, Spinner} from "../components/ui";
 import {toast} from "../components/ui/toastStore";
 import {isApiError} from "../api/errors";
+import {useJobApplications} from "../hooks/useJobApplications";
 import {useJobOpening} from "../hooks/useJobOpening";
 import {useSession} from "../hooks/useSession";
 import {useUsers} from "../hooks/useUsers";
@@ -24,6 +27,8 @@ import type {CreateStepInput, Step} from "../types/step";
 import {canManageJobOpening} from "../utils/permissions";
 
 const STEP_PARAM = "etapa";
+const SECTION_PARAM = "secao";
+const CANDIDATES_SECTION = "candidatos";
 const GENERIC_DELETE_JOB_ERROR = "Não foi possível remover a vaga. Tente novamente.";
 const GENERIC_DELETE_STEP_ERROR = "Não foi possível remover a etapa. Tente novamente.";
 
@@ -46,6 +51,7 @@ export default function JobOpeningDetail(): JSX.Element {
 		editStep,
 		removeStep,
 	} = useJobOpening(id);
+	const applications = useJobApplications(id);
 
 	const [jobFormOpen, setJobFormOpen] = useState(false);
 	const [jobFormKey, setJobFormKey] = useState(0);
@@ -60,16 +66,21 @@ export default function JobOpeningDetail(): JSX.Element {
 
 	const userNames = useMemo(() => new Map(users.map((user) => [user.id, user.name])), [users]);
 
-	// Seção ativa vem da URL: `?etapa=<id>` abre a etapa; sem ele (ou inválido), "Sobre a vaga".
+	// Seção ativa vem da URL: `?etapa=<id>` abre a etapa, `?secao=candidatos` os candidatos;
+	// sem nenhum (ou com valor inválido), "Sobre a vaga".
 	const selectedStep = steps.find((step) => step.id === searchParams.get(STEP_PARAM)) ?? null;
+	const showCandidates = !selectedStep && searchParams.get(SECTION_PARAM) === CANDIDATES_SECTION;
 	const nextOrder = steps.reduce((max, step) => Math.max(max, step.order), 0) + 1;
 
-	function selectSection(stepId: string | null) {
+	/** `null` = "Sobre a vaga"; `"candidatos"` = candidatos; qualquer outro valor = id da etapa. */
+	function selectSection(section: string | null) {
 		setSearchParams(
 			(prev) => {
 				const next = new URLSearchParams(prev);
-				if (stepId) next.set(STEP_PARAM, stepId);
-				else next.delete(STEP_PARAM);
+				next.delete(STEP_PARAM);
+				next.delete(SECTION_PARAM);
+				if (section === CANDIDATES_SECTION) next.set(SECTION_PARAM, section);
+				else if (section) next.set(STEP_PARAM, section);
 				return next;
 			},
 			{replace: true},
@@ -206,10 +217,20 @@ export default function JobOpeningDetail(): JSX.Element {
 					<ol className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-2 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0">
 						<li className="w-48 shrink-0 snap-start lg:w-auto">
 							<SectionButton
-								active={selectedStep === null}
+								active={selectedStep === null && !showCandidates}
 								onClick={() => selectSection(null)}
 								marker={<RiFileTextLine className="size-3.5" />}
 								label="Sobre a vaga"
+							/>
+						</li>
+
+						<li className="w-48 shrink-0 snap-start lg:w-auto">
+							<SectionButton
+								active={showCandidates}
+								onClick={() => selectSection(CANDIDATES_SECTION)}
+								marker={<RiTeamLine className="size-3.5" />}
+								label="Candidatos"
+								count={applications.loading ? undefined : applications.applications.length}
 							/>
 						</li>
 
@@ -270,7 +291,13 @@ export default function JobOpeningDetail(): JSX.Element {
 				</nav>
 
 				<Card padding="md" className="min-w-0">
-					{selectedStep && session ? (
+					{showCandidates ? (
+						<CandidatesPanel
+							jobOpening={jobOpening}
+							canManage={canManage}
+							{...applications}
+						/>
+					) : selectedStep && session ? (
 						<InterviewsPanel
 							key={selectedStep.id}
 							step={selectedStep}
@@ -371,9 +398,18 @@ type SectionButtonProps = {
 	label: string;
 	/** Reserva espaço à direita para os botões de editar/remover. */
 	withActions?: boolean;
+	/** Contador à direita (ex.: total de candidatos). */
+	count?: number;
 };
 
-function SectionButton({active, onClick, marker, label, withActions}: SectionButtonProps): JSX.Element {
+function SectionButton({
+	active,
+	onClick,
+	marker,
+	label,
+	withActions,
+	count,
+}: SectionButtonProps): JSX.Element {
 	return (
 		<button
 			type="button"
@@ -395,7 +431,16 @@ function SectionButton({active, onClick, marker, label, withActions}: SectionBut
 				].join(" ")}>
 				{marker}
 			</span>
-			<span className="min-w-0 truncate text-sm font-medium">{label}</span>
+			<span className="min-w-0 flex-1 truncate text-sm font-medium">{label}</span>
+			{count !== undefined && (
+				<span
+					className={[
+						"shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
+						active ? "bg-primary/15 text-primary" : "bg-base-200 text-base-content/60",
+					].join(" ")}>
+					{count}
+				</span>
+			)}
 		</button>
 	);
 }
