@@ -1,4 +1,4 @@
-import {RiHomeLine, RiUploadCloud2Line, RiUserLine} from "@remixicon/react";
+import {RiHomeLine, RiMedalLine, RiUploadCloud2Line, RiUserLine} from "@remixicon/react";
 import type {JSX} from "react";
 import {NavLink} from "react-router-dom";
 
@@ -36,6 +36,23 @@ export default function Sidebar(): JSX.Element {
 							data-tip="Homepage">
 							<RiHomeLine />
 							<span className="is-drawer-close:hidden">Homepage</span>
+						</NavLink>
+					</li>
+
+					<li>
+						<NavLink
+							to="/competencias"
+							className={({isActive}) =>
+								[
+									"is-drawer-close:tooltip is-drawer-close:tooltip-right is-drawer-close:flex is-drawer-close:items-center is-drawer-close:justify-center p-2",
+									isActive && "menu-active",
+								]
+									.filter(Boolean)
+									.join(" ")
+							}
+							data-tip="Competências">
+							<RiMedalLine />
+							<span className="is-drawer-close:hidden">Competências</span>
 						</NavLink>
 					</li>
 

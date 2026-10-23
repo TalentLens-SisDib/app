@@ -6,6 +6,7 @@ import Dashboard from "../pages/Dashboard";
 import ImportResumes from "../pages/ImportResumes";
 import Login from "../pages/Login";
 import NotFound from "../pages/NotFound";
+import Skills from "../pages/Skills";
 import UiPlayground from "../pages/UiPlayground";
 import Users from "../pages/Users";
 
@@ -21,6 +22,7 @@ export default function AppRoutes(): JSX.Element {
 				<Route path="/candidatos/importar" element={<ImportResumes />} />
 				<Route path="/ui-playground" element={<UiPlayground />} />
 				<Route path="/usuarios" element={<Users />} />
+				<Route path="/competencias" element={<Skills />} />
 			</Route>
 
 			<Route path="*" element={<NotFound />} />
