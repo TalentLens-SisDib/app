@@ -1,4 +1,4 @@
-import {useState, type FormEvent, type JSX} from "react";
+import {useState, type SubmitEvent, type JSX} from "react";
 import {useNavigate} from "react-router-dom";
 import Brand from "../components/layout/Brand";
 import {Alert, Button, Card, Input} from "../components/ui";
@@ -22,7 +22,7 @@ export default function Login(): JSX.Element {
 	const [loading, setLoading] = useState(false);
 	const [formError, setFormError] = useState<string | null>(null);
 
-	async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+	async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
 		if (loading) return;
 
