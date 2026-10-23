@@ -2,6 +2,7 @@ import {useRef, useState, type DragEvent, type JSX} from "react";
 import {
 	RiAddLine,
 	RiArrowDownSLine,
+	RiBriefcase4Line,
 	RiCheckboxBlankCircleLine,
 	RiCheckboxCircleLine,
 	RiClipboardLine,
@@ -14,6 +15,7 @@ import {
 	RiUploadCloud2Line,
 } from "@remixicon/react";
 import PageHeader from "../components/layout/PageHeader";
+import LinkToJobDialog from "../components/jobOpenings/LinkToJobDialog";
 import {Alert, Badge, Button, Dialog} from "../components/ui";
 import {toast} from "../components/ui/toastStore";
 import {ACCEPTED_EXTENSIONS} from "../api/services/resumeImports";
@@ -94,6 +96,29 @@ export default function ImportResumes(): JSX.Element {
 	const inputRef = useRef<HTMLInputElement>(null);
 	const [dragging, setDragging] = useState(false);
 	const [detail, setDetail] = useState<ResumeImportResult | null>(null);
+	const [linkTarget, setLinkTarget] = useState<{id: string; name: string} | null>(null);
+	// Total de vagas por perfil, atualizado a cada vínculo feito nesta tela.
+	const [linkedCounts, setLinkedCounts] = useState<Record<string, number>>({});
+
+	function openLink(result: ResumeImportResult) {
+		if (!result.profileId) return;
+		setLinkTarget({id: result.profileId, name: result.candidateName ?? result.fileName});
+	}
+
+	function renderLinkAction(result: ResumeImportResult) {
+		if (!result.profileId) return null;
+		const count = linkedCounts[result.profileId] ?? 0;
+		return (
+			<Button
+				variant={count > 0 ? "ghost" : "outline"}
+				size="sm"
+				onClick={() => openLink(result)}
+				aria-label={`Vincular ${result.candidateName ?? result.fileName} a uma vaga`}>
+				<RiBriefcase4Line className="size-4" />
+				{count > 0 ? `${count} ${plural(count, "vaga", "vagas")}` : "Vincular à vaga"}
+			</Button>
+		);
+	}
 
 	function handleFiles(list: FileList | null) {
 		if (!list || list.length === 0) return;
@@ -492,12 +517,15 @@ export default function ImportResumes(): JSX.Element {
 													{result.message}
 												</p>
 											</div>
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => setDetail(result)}>
-												{failed ? "Ver detalhes" : "Revisar"}
-											</Button>
+											<div className="flex flex-wrap gap-2">
+												{!failed && renderLinkAction(result)}
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => setDetail(result)}>
+													{failed ? "Ver detalhes" : "Revisar"}
+												</Button>
+											</div>
 										</li>
 									);
 								})}
@@ -528,15 +556,29 @@ export default function ImportResumes(): JSX.Element {
 												{result.fileName}
 											</p>
 										</div>
-										<Badge variant="success" size="sm">
-											Importado
-										</Badge>
+										{renderLinkAction(result) ?? (
+											<Badge variant="success" size="sm">
+												Importado
+											</Badge>
+										)}
 									</li>
 								))}
 							</ul>
 						</details>
 					)}
 				</>
+			)}
+
+			{linkTarget && (
+				<LinkToJobDialog
+					key={linkTarget.id}
+					open
+					onClose={() => setLinkTarget(null)}
+					profile={linkTarget}
+					onLinked={(total) =>
+						setLinkedCounts((prev) => ({...prev, [linkTarget.id]: total}))
+					}
+				/>
 			)}
 
 			<Dialog

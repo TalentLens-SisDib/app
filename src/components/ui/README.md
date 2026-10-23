@@ -147,6 +147,59 @@ Mesmo padrão visual e de acessibilidade do `Input`, mas para `<select>`:
 
 ---
 
+## Textarea
+
+Mesmo padrão visual e de acessibilidade do `Input` (`label`, `error`, `helperText`, `required`), para `<textarea>`:
+
+```tsx
+<Textarea label="Descrição" rows={5} value={value} onChange={handleChange} />
+```
+
+---
+
+## TagInput
+
+Lista de textos curtos editável como chips. Enter adiciona, Backspace com o campo vazio remove o último, itens repetidos são ignorados.
+
+```tsx
+<TagInput label="Pontos-chave" value={items} onChange={setItems} maxLength={255} />
+```
+
+| Prop | Tipo | Descrição |
+|---|---|---|
+| `value` / `onChange` | `string[]` / `(value: string[]) => void` | Controlado |
+| `label`, `error`, `helperText`, `placeholder`, `disabled` | — | Iguais ao `Input` |
+| `maxLength` | `number` | Limite de caracteres por item |
+
+---
+
+## CurrencyInput
+
+`Input` com máscara de reais. Recebe e devolve o valor numérico (`number | null`); a digitação preenche pelos centavos.
+
+```tsx
+<CurrencyInput label="Remuneração" value={wage} onChange={setWage} />
+```
+
+---
+
+## RichTextEditor / RichText
+
+Editor rich text (Tiptap: negrito, itálico, sublinhado, títulos, listas, citação, desfazer/refazer) e o componente que exibe o HTML gerado, sanitizado com DOMPurify. Ambos usam a classe `.tl-rich-text` de [index.css](../../index.css), então o conteúdo aparece igual no editor e na leitura.
+
+```tsx
+<RichTextEditor label="Descrição" value={html} onChange={setHtml} error={error} />
+<RichText value={html} />
+```
+
+- `onChange` recebe `""` quando o editor fica vazio (validação de obrigatório funciona com `!value`).
+- Controlado: mudar `value` por fora (ex.: arquivo importado) substitui o conteúdo e entra no histórico — Ctrl+Z desfaz.
+- `labelAction` renderiza uma ação à direita do label; `minHeightClass` ajusta a altura mínima.
+- O barrel exporta a versão lazy ([LazyRichTextEditor.tsx](LazyRichTextEditor.tsx)): o Tiptap só é baixado quando um editor aparece.
+- Texto puro (legado) é convertido em parágrafos, tanto no editor quanto no `RichText`.
+
+---
+
 ## Spinner
 
 ```tsx
@@ -188,6 +241,7 @@ const [open, setOpen] = useState(false);
 | `onClose` | `() => void` | Chamado ao fechar pelo X, ESC, clique fora, ou fechamento do `<dialog>` nativo |
 | `title` | `string` | Opcional |
 | `actions` | `ReactNode` | Renderizado em `.modal-action` |
+| `size` | `"md" \| "lg"` | Largura máxima (padrão `"md"` = `max-w-lg`; `"lg"` = `max-w-2xl`, para formulários maiores) |
 | `children` | `ReactNode` | Corpo do modal |
 
 Implementado sobre `<dialog>` nativo (`showModal()` / `close()`): foco fica preso automaticamente dentro do modal e ESC fecha sem código extra. Não há gerenciamento global de modais — cada tela controla seu próprio `open` via `useState`.

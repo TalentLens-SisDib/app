@@ -1,4 +1,4 @@
-import {useMemo, useState, type FormEvent, type JSX} from "react";
+import {useMemo, useState, type SubmitEvent, type JSX} from "react";
 import {RiAddLine, RiDeleteBinLine, RiEditLine} from "@remixicon/react";
 import PageHeader from "../components/layout/PageHeader";
 import {Alert, Badge, Button, Card, Dialog, Input, Select, Spinner} from "../components/ui";
@@ -70,7 +70,7 @@ export default function Users(): JSX.Element {
 		setFormOpen(true);
 	}
 
-	async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+	async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
 		if (submitting) return;
 
