@@ -5,7 +5,15 @@ export type DialogProps = {
 	onClose: () => void;
 	title?: string;
 	actions?: ReactNode;
+	size?: DialogSize;
 	children: ReactNode;
+};
+
+export type DialogSize = "md" | "lg";
+
+const sizeClass: Record<DialogSize, string> = {
+	md: "max-w-lg",
+	lg: "max-w-2xl",
 };
 
 export default function Dialog({
@@ -13,6 +21,7 @@ export default function Dialog({
 	onClose,
 	title,
 	actions,
+	size = "md",
 	children,
 }: DialogProps): JSX.Element {
 	const dialogRef = useRef<HTMLDialogElement>(null);
@@ -32,7 +41,7 @@ export default function Dialog({
 			aria-labelledby={title ? titleId : undefined}
 			onClose={onClose}
 			onCancel={onClose}>
-			<div className="modal-box max-w-lg border-base-300 border p-0 shadow-xl">
+			<div className={`modal-box ${sizeClass[size]} border-base-300 border p-0 shadow-xl`}>
 				<form method="dialog">
 					<button
 						aria-label="Fechar"
