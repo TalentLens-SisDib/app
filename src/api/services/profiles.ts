@@ -10,9 +10,7 @@ export function getProfile(id: string, signal?: AbortSignal): Promise<Profile> {
 }
 
 /**
- * Envia um currículo para leitura. A API responde com o perfil já criado —
- * a extração dos dados continua do lado dela, por isso quem importa
- * acompanha o resultado por `getProfile`.
+ * Envia um currículo para leitura. A API responde com o perfil final já criado.
  */
 export function uploadCv(file: File, signal?: AbortSignal): Promise<Profile> {
 	const form = new FormData();
