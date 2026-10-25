@@ -1,4 +1,4 @@
-export type ResumeFormat = "PDF" | "DOCX" | "DOC";
+export type ResumeFormat = "PDF";
 
 /** Estados possíveis de um arquivo durante a importação. */
 export type ResumeFileStatus = "waiting" | "processing" | "done" | "attention" | "failed";

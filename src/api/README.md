@@ -18,7 +18,7 @@ api/
     ├── steps.ts       getSteps, createStep, updateStep, deleteStep (aninhado em /job-openings/{id})
     ├── interviews.ts  getInterviews, createInterview, updateInterview, deleteInterview (aninhado em /steps/{id})
     ├── applications.ts  ⚠ MOCK — getApplications, getProfileApplications, createApplication, deleteApplication
-    └── resumeImports.ts  seleção de arquivos + importação de currículos (upload e polling)
+    └── resumeImports.ts  seleção de arquivos + importação de currículos
 ```
 
 ## Responsabilidades
@@ -63,23 +63,15 @@ DELETE /job-openings/{id}/applications/{profileId}
 existir, troque o corpo das funções por `apiClient` — a assinatura não muda (`profileName` em
 `CreateApplicationInput` deixa de ser necessário).
 
-## Importação de currículos (polling)
+## Importação de currículos
 
-`services/resumeImports.ts` é o único service com fluxo de várias etapas, porque a
-API não expõe um recurso de "job de importação" — o acompanhamento é feito pelo cliente:
-
-1. `selectResumeFiles` valida a seleção do usuário (formato, 10 MB por arquivo, 50 por importação).
-2. Para cada currículo, `uploadCv` envia o arquivo em `multipart/form-data` para
-   `POST /profiles/upload-cv` (campo `cv`), que cria o perfil do candidato.
-3. `GET /profiles/{id}` é consultado a cada `POLL_INTERVAL_MS` até o perfil ficar
-   completo (resumo + competências extraídos) ou atingir `POLL_TIMEOUT_MS`.
-4. O desfecho de cada arquivo sai dos dados realmente extraídos: `done` quando o
-   perfil está completo, `attention` com a lista do que faltou, `failed` quando o
-   upload ou a leitura falhou.
+`selectResumeFiles` aceita PDFs de até 5 MB, até 50 por importação. Para cada
+arquivo, `uploadCv` envia `multipart/form-data` no campo `cv` para
+`POST /profiles/upload-cv`, que devolve o perfil final já persistido. O resultado
+é `done` quando o perfil tem resumo e competências, `attention` quando faltam
+dados e `failed` quando o upload falha. Perfis esparsos continuam disponíveis
+para revisão e não geram um falso timeout.
 
 `importResumes` emite cada transição em `onProgress` (consumido por `hooks/useResumeImport.ts`),
 aceita um `AbortSignal` para cancelamento e interrompe a importação inteira apenas
 quando o erro não é do arquivo (sessão expirada ou API fora do ar).
-
-Hoje a leitura automática da API aceita só PDF; `DOCX`/`DOC` são aceitos na seleção,
-mas devolvidos como `failed` com essa justificativa até o backend suportá-los.

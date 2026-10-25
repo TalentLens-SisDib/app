@@ -229,16 +229,9 @@ export default function ImportResumes(): JSX.Element {
 								<Badge variant="outline" size="sm">
 									PDF
 								</Badge>
-								<Badge variant="outline" size="sm">
-									DOCX
-								</Badge>
-								<Badge variant="outline" size="sm">
-									DOC
-								</Badge>
 							</div>
 							<p className="text-base-content/60 mt-2 text-sm">
-								Até 10 MB por arquivo e 50 arquivos por importação. Por enquanto, só
-								o PDF é lido automaticamente.
+								Até 5 MB por arquivo e 50 arquivos por importação.
 							</p>
 						</div>
 					</div>
