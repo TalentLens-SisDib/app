@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "check:job-criteria": "node --experimental-strip-types scripts/jobCriteriaSelfcheck.mts",
     "preview": "vite preview"
   },
   "dependencies": {
