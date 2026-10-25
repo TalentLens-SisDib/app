@@ -12,6 +12,7 @@ import {
 import PageHeader from "../components/layout/PageHeader";
 import CandidatesPanel from "../components/jobOpenings/CandidatesPanel";
 import InterviewsPanel from "../components/jobOpenings/InterviewsPanel";
+import JobCriteriaPanel from "../components/jobOpenings/JobCriteriaPanel";
 import JobOpeningFormDialog from "../components/jobOpenings/JobOpeningFormDialog";
 import JobOverviewPanel from "../components/jobOpenings/JobOverviewPanel";
 import StepFormDialog from "../components/jobOpenings/StepFormDialog";
@@ -310,6 +311,7 @@ export default function JobOpeningDetail(): JSX.Element {
 								jobOpening={jobOpening}
 								ownerName={userNames.get(jobOpening.userId) ?? `Usuário #${jobOpening.userId}`}
 							/>
+							<JobCriteriaPanel key={jobOpening.id} jobOpeningId={jobOpening.id} canManage={canManage} />
 							{steps.length === 0 && canManage && (
 								<div className="bg-primary/5 border-primary/15 rounded-box mt-6 flex flex-col items-start gap-3 border p-4 sm:flex-row sm:items-center">
 									<RiFlowChart className="text-primary size-5 shrink-0" />
