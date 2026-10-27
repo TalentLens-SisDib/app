@@ -1,74 +1,37 @@
+import {apiClient} from "../client";
 import type {CreateApplicationInput, JobApplication} from "../../types/application";
-import {ApiError} from "../errors";
 
-// Mock: a API ainda não expõe candidaturas (o model `JobApplication` existe no
-// banco, mas sem endpoints). As funções seguem o contrato proposto:
-//   GET    /job-openings/{id}/applications
-//   POST   /job-openings/{id}/applications            {profileId}
-//   DELETE /job-openings/{id}/applications/{profileId}
-// Quando a API existir, troque o corpo por chamadas em `apiClient` — a assinatura
-// não muda. Os dados ficam em localStorage para sobreviver ao recarregar a página.
+/** Candidatura como vem embutida em `GET /profiles/{id}` (sem o nome do perfil). */
+type ProfileApplication = {
+	profileId: string;
+	jobOpeningId: string;
+	appliedAt: string;
+};
 
-const STORAGE_KEY = "mock_job_applications";
-
-function delay(ms: number): Promise<void> {
-	return new Promise((resolve) => window.setTimeout(resolve, ms));
+export function getApplications(jobOpeningId: string): Promise<JobApplication[]> {
+	return apiClient.get<JobApplication[]>(`/job-openings/${jobOpeningId}/applications`);
 }
 
-function read(): JobApplication[] {
-	try {
-		const raw = window.localStorage.getItem(STORAGE_KEY);
-		return raw ? (JSON.parse(raw) as JobApplication[]) : [];
-	} catch {
-		return [];
-	}
-}
-
-function write(applications: JobApplication[]): void {
-	try {
-		window.localStorage.setItem(STORAGE_KEY, JSON.stringify(applications));
-	} catch {
-		// localStorage indisponível — o vínculo vale só até recarregar a página.
-	}
-}
-
-export async function getApplications(jobOpeningId: string): Promise<JobApplication[]> {
-	await delay(250);
-	return read().filter((item) => item.jobOpeningId === jobOpeningId);
-}
-
-/** Na API real, vem em `GET /profiles/{id}` (campo `applications`). */
+/** Vagas de um perfil — vêm no campo `applications` de `GET /profiles/{id}`. */
 export async function getProfileApplications(profileId: string): Promise<JobApplication[]> {
-	await delay(250);
-	return read().filter((item) => item.profileId === profileId);
+	const profile = await apiClient.get<{name: string; applications?: ProfileApplication[]}>(
+		`/profiles/${profileId}`,
+	);
+	return (profile.applications ?? []).map((application) => ({
+		...application,
+		profileName: profile.name,
+	}));
 }
 
-export async function createApplication(
+/** Só o dono da vaga ou um Admin. 409 se o candidato já está na vaga. */
+export function createApplication(
 	jobOpeningId: string,
 	data: CreateApplicationInput,
 ): Promise<JobApplication> {
-	await delay(300);
-	const applications = read();
-	if (applications.some((item) => item.jobOpeningId === jobOpeningId && item.profileId === data.profileId))
-		throw new ApiError("O candidato já está vinculado a essa vaga.", "unknown", 409);
-
-	const application: JobApplication = {
-		profileId: data.profileId,
-		profileName: data.profileName,
-		jobOpeningId,
-		appliedAt: new Date().toISOString(),
-	};
-	write([...applications, application]);
-	return application;
+	return apiClient.post<JobApplication>(`/job-openings/${jobOpeningId}/applications`, data);
 }
 
-export async function deleteApplication(jobOpeningId: string, profileId: string): Promise<void> {
-	await delay(300);
-	const applications = read();
-	const next = applications.filter(
-		(item) => !(item.jobOpeningId === jobOpeningId && item.profileId === profileId),
-	);
-	if (next.length === applications.length)
-		throw new ApiError("Candidatura não encontrada.", "not_found", 404);
-	write(next);
+/** Só o dono da vaga ou um Admin. */
+export function deleteApplication(jobOpeningId: string, profileId: string): Promise<void> {
+	return apiClient.delete<void>(`/job-openings/${jobOpeningId}/applications/${profileId}`);
 }

@@ -1,4 +1,4 @@
-import {useEffect, useId, type JSX, type ReactNode} from "react";
+import {useEffect, useId, useRef, type JSX, type ReactNode} from "react";
 import {EditorContent, useEditor, useEditorState, type Editor} from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -144,6 +144,10 @@ export default function RichTextEditor({
 }: RichTextEditorProps): JSX.Element {
 	const fieldId = useId();
 	const describedBy = error ? `${fieldId}-error` : helperText ? `${fieldId}-helper` : undefined;
+	// Último valor que o próprio editor emitiu (ou recebeu). Comparar com `getHTML()`
+	// falha quando o HTML salvo não é idêntico ao que o Tiptap gera (texto puro,
+	// marcação normalizada) e faria `setContent` rodar na montagem.
+	const syncedValue = useRef(value);
 
 	const editor = useEditor({
 		extensions: [
@@ -168,19 +172,23 @@ export default function RichTextEditor({
 				class: `tl-rich-text ${minHeightClass} max-h-[28rem] overflow-y-auto px-3 py-2.5 text-sm outline-none`,
 			},
 		},
-		onUpdate: ({editor: current}) => onChange(current.isEmpty ? "" : current.getHTML()),
+		onUpdate: ({editor: current}) => {
+			const html = current.isEmpty ? "" : current.getHTML();
+			syncedValue.current = html;
+			onChange(html);
+		},
 	});
 
-	// Durante a digitação `value` já é o próprio HTML do editor, então isto só age
-	// quando o conteúdo muda por fora.
+	// Só age quando `value` muda por fora (ex.: arquivo importado). No StrictMode o
+	// React desmonta/remonta e a instância anterior fica destruída (sem `view`).
 	useEffect(() => {
-		if (!editor) return;
-		const current = editor.isEmpty ? "" : editor.getHTML();
-		if (value !== current) editor.commands.setContent(toEditorContent(value), {emitUpdate: false});
+		if (!editor || editor.isDestroyed || value === syncedValue.current) return;
+		syncedValue.current = value;
+		editor.commands.setContent(toEditorContent(value), {emitUpdate: false});
 	}, [editor, value]);
 
 	useEffect(() => {
-		editor?.setEditable(!disabled, false);
+		if (editor && !editor.isDestroyed) editor.setEditable(!disabled, false);
 	}, [editor, disabled]);
 
 	return (

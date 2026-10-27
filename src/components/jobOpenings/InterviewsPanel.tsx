@@ -1,4 +1,4 @@
-import {useMemo, useState, type JSX} from "react";
+import {useMemo, useState, type JSX, type ReactNode} from "react";
 import {
 	RiAddLine,
 	RiArrowDownSLine,
@@ -6,10 +6,11 @@ import {
 	RiDeleteBinLine,
 	RiEditLine,
 	RiFileList3Line,
+	RiTeamLine,
 } from "@remixicon/react";
 import {Alert, Badge, Button, Dialog, RichText, Spinner} from "../ui";
 import {toast} from "../ui/toastStore";
-import InterviewEditor from "./InterviewEditor";
+import InterviewEditor, {type InterviewCandidate} from "./InterviewEditor";
 import {isApiError} from "../../api/errors";
 import {useInterviews} from "../../hooks/useInterviews";
 import type {CreateInterviewInput, Interview} from "../../types/interview";
@@ -20,6 +21,7 @@ import {toPlainText} from "../../utils/richText";
 /** Acima disso a transcrição começa recolhida. */
 const LONG_TRANSCRIPT = 360;
 const GENERIC_DELETE_ERROR = "Não foi possível remover o registro. Tente novamente.";
+const REMOVED_CANDIDATE = "Candidato removido da vaga";
 
 type EditorMode = {kind: "create"} | {kind: "edit"; id: string} | null;
 
@@ -28,42 +30,63 @@ export type InterviewsPanelProps = {
 	currentUserId: number;
 	/** Nome de quem registrou cada entrevista, por id de usuário. */
 	userNames: Map<number, string>;
+	/** Candidatos vinculados à vaga — quem pode ser entrevistado. */
+	candidates: InterviewCandidate[];
+	candidatesLoading: boolean;
+	/** Leva à seção de candidatos da vaga (estado vazio). */
+	onGoToCandidates: () => void;
 };
 
 /**
- * Registros de entrevista de uma etapa. Deve ser montado com `key={step.id}`
- * para recomeçar o estado (lista, editor aberto) a cada troca de etapa.
+ * Registros de entrevista de uma etapa: vários por candidato e por
+ * entrevistador. Deve ser montado com `key={step.id}` para recomeçar o
+ * estado (lista, filtro, editor aberto) a cada troca de etapa.
  */
 export default function InterviewsPanel({
 	step,
 	currentUserId,
 	userNames,
+	candidates,
+	candidatesLoading,
+	onGoToCandidates,
 }: InterviewsPanelProps): JSX.Element {
 	const {interviews, loading, error, reload, create, update, remove} = useInterviews(step.id);
 	const [editor, setEditor] = useState<EditorMode>(null);
+	const [filter, setFilter] = useState<string | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<Interview | null>(null);
 	const [deleting, setDeleting] = useState(false);
 
-	// O registro do usuário logado vem primeiro; os demais, do mais recente ao mais antigo.
-	const sorted = useMemo(
-		() =>
-			[...interviews].sort((a, b) => {
-				if (a.userId === currentUserId) return -1;
-				if (b.userId === currentUserId) return 1;
-				return b.createdAt.localeCompare(a.createdAt);
-			}),
-		[interviews, currentUserId],
+	const candidateNames = useMemo(
+		() => new Map(candidates.map((candidate) => [candidate.id, candidate.name])),
+		[candidates],
 	);
-	const hasOwnInterview = interviews.some((interview) => interview.userId === currentUserId);
+	const nameOf = (profileId: string) => candidateNames.get(profileId) ?? REMOVED_CANDIDATE;
+
+	const countByCandidate = useMemo(() => {
+		const counts = new Map<string, number>();
+		for (const interview of interviews)
+			counts.set(interview.profileId, (counts.get(interview.profileId) ?? 0) + 1);
+		return counts;
+	}, [interviews]);
+
+	// Filtro por candidato; da entrevista mais recente para a mais antiga.
+	const visible = useMemo(
+		() =>
+			interviews
+				.filter((interview) => !filter || interview.profileId === filter)
+				.sort((a, b) => b.startDate.localeCompare(a.startDate)),
+		[interviews, filter],
+	);
 
 	async function handleCreate(data: CreateInterviewInput) {
 		await create(data);
-		toast.success("Entrevista registrada com sucesso");
+		toast.success(`Entrevista com ${nameOf(data.profileId)} registrada`);
 		setEditor(null);
 	}
 
 	async function handleUpdate(id: string, data: CreateInterviewInput) {
-		await update(id, data);
+		const {transcript, keyTakeaways, startDate} = data;
+		await update(id, {transcript, keyTakeaways, startDate});
 		toast.success("Registro atualizado com sucesso");
 		setEditor(null);
 	}
@@ -82,6 +105,9 @@ export default function InterviewsPanel({
 		}
 	}
 
+	const busy = loading || candidatesLoading;
+	const canRegister = candidates.length > 0;
+
 	return (
 		<section aria-labelledby={`step-${step.id}-title`} className="space-y-4">
 			<header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -96,7 +122,7 @@ export default function InterviewsPanel({
 						<RichText value={step.description} className="text-base-content/70 mt-2 text-sm" />
 					)}
 				</div>
-				{!loading && !error && !hasOwnInterview && editor?.kind !== "create" && (
+				{!busy && !error && canRegister && editor?.kind !== "create" && (
 					<Button size="sm" className="shrink-0" onClick={() => setEditor({kind: "create"})}>
 						<RiAddLine className="size-4" />
 						Registrar entrevista
@@ -104,8 +130,27 @@ export default function InterviewsPanel({
 				)}
 			</header>
 
+			{/* Filtro por candidato: só aparece quando há registros de mais de um. */}
+			{!busy && !error && countByCandidate.size > 1 && (
+				<div role="group" aria-label="Filtrar por candidato" className="flex flex-wrap gap-1.5">
+					<FilterChip active={filter === null} onClick={() => setFilter(null)}>
+						Todos <span className="tabular-nums opacity-70">{interviews.length}</span>
+					</FilterChip>
+					{[...countByCandidate].map(([profileId, count]) => (
+						<FilterChip key={profileId} active={filter === profileId} onClick={() => setFilter(profileId)}>
+							{nameOf(profileId)} <span className="tabular-nums opacity-70">{count}</span>
+						</FilterChip>
+					))}
+				</div>
+			)}
+
 			{editor?.kind === "create" && (
-				<InterviewEditor onCancel={() => setEditor(null)} onSubmit={handleCreate} />
+				<InterviewEditor
+					candidates={candidates}
+					defaultProfileId={filter ?? undefined}
+					onCancel={() => setEditor(null)}
+					onSubmit={handleCreate}
+				/>
 			)}
 
 			{error ? (
@@ -117,12 +162,27 @@ export default function InterviewsPanel({
 						</Button>
 					</div>
 				</Alert>
-			) : loading ? (
+			) : busy ? (
 				<div className="flex flex-col items-center justify-center gap-3 py-12">
 					<Spinner />
 					<p className="text-base-content/60 text-sm">Carregando entrevistas...</p>
 				</div>
-			) : sorted.length === 0 ? (
+			) : !canRegister && interviews.length === 0 ? (
+				<div className="border-base-300 rounded-box flex flex-col items-center gap-3 border border-dashed px-4 py-10 text-center">
+					<span className="bg-base-200 text-base-content/50 grid size-11 place-items-center rounded-full">
+						<RiTeamLine className="size-5" />
+					</span>
+					<div>
+						<p className="text-sm font-medium">A vaga ainda não tem candidatos</p>
+						<p className="text-base-content/60 mt-1 text-sm">
+							Vincule candidatos à vaga para registrar as entrevistas desta etapa.
+						</p>
+					</div>
+					<Button size="sm" variant="outline" onClick={onGoToCandidates}>
+						Ver candidatos da vaga
+					</Button>
+				</div>
+			) : visible.length === 0 ? (
 				editor?.kind !== "create" && (
 					<div className="border-base-300 rounded-box flex flex-col items-center gap-3 border border-dashed px-4 py-10 text-center">
 						<span className="bg-base-200 text-base-content/50 grid size-11 place-items-center rounded-full">
@@ -131,24 +191,26 @@ export default function InterviewsPanel({
 						<div>
 							<p className="text-sm font-medium">Nenhuma entrevista registrada nesta etapa</p>
 							<p className="text-base-content/60 mt-1 text-sm">
-								Registre a transcrição e os pontos-chave logo após a conversa.
+								Registre a transcrição e os pontos-chave logo após a conversa com cada candidato.
 							</p>
 						</div>
 					</div>
 				)
 			) : (
 				<ul className="space-y-3">
-					{sorted.map((interview) => (
+					{visible.map((interview) => (
 						<li key={interview.id}>
 							{editor?.kind === "edit" && editor.id === interview.id ? (
 								<InterviewEditor
 									interview={interview}
+									candidates={candidates}
 									onCancel={() => setEditor(null)}
 									onSubmit={(data) => handleUpdate(interview.id, data)}
 								/>
 							) : (
 								<InterviewCard
 									interview={interview}
+									candidateName={nameOf(interview.profileId)}
 									authorName={userNames.get(interview.userId) ?? `Usuário #${interview.userId}`}
 									isOwn={interview.userId === currentUserId}
 									onEdit={() => setEditor({kind: "edit", id: interview.id})}
@@ -175,7 +237,9 @@ export default function InterviewsPanel({
 					</>
 				}>
 				<p>
-					Tem certeza que deseja remover seu registro da etapa <strong>{step.name}</strong>? A
+					Tem certeza que deseja remover seu registro da entrevista com{" "}
+					<strong>{deleteTarget ? nameOf(deleteTarget.profileId) : ""}</strong> de{" "}
+					<strong>{deleteTarget ? formatDateTime(deleteTarget.startDate) : ""}</strong>? A
 					transcrição e os pontos-chave serão perdidos.
 				</p>
 			</Dialog>
@@ -183,8 +247,34 @@ export default function InterviewsPanel({
 	);
 }
 
+function FilterChip({
+	active,
+	onClick,
+	children,
+}: {
+	active: boolean;
+	onClick: () => void;
+	children: ReactNode;
+}): JSX.Element {
+	return (
+		<button
+			type="button"
+			aria-pressed={active}
+			onClick={onClick}
+			className={[
+				"cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+				active
+					? "border-primary/30 bg-primary/10 text-primary"
+					: "border-base-300 bg-base-100 text-base-content/70 hover:border-primary/30",
+			].join(" ")}>
+			{children}
+		</button>
+	);
+}
+
 type InterviewCardProps = {
 	interview: Interview;
+	candidateName: string;
 	authorName: string;
 	isOwn: boolean;
 	onEdit: () => void;
@@ -193,6 +283,7 @@ type InterviewCardProps = {
 
 function InterviewCard({
 	interview,
+	candidateName,
 	authorName,
 	isOwn,
 	onEdit,
@@ -211,38 +302,36 @@ function InterviewCard({
 			<header className="flex items-start gap-3">
 				<span
 					aria-hidden="true"
-					className={[
-						"grid size-9 shrink-0 place-items-center rounded-full text-sm font-semibold",
-						isOwn ? "bg-primary text-primary-content" : "bg-base-200 text-base-content/70",
-					].join(" ")}>
-					{authorName.trim().charAt(0).toUpperCase() || "?"}
+					className="bg-base-200 text-base-content/70 grid size-9 shrink-0 place-items-center rounded-full text-sm font-semibold">
+					{candidateName.trim().charAt(0).toUpperCase() || "?"}
 				</span>
 				<div className="min-w-0 flex-1">
-					<p className="flex flex-wrap items-center gap-2 text-sm font-medium">
-						<span className="truncate">{authorName}</span>
+					<p className="truncate text-sm font-semibold">{candidateName}</p>
+					<p className="text-base-content/55 flex flex-wrap items-center gap-x-1.5 text-xs">
+						<span>
+							{formatDateTime(interview.startDate)} · por{" "}
+							<span className="text-base-content/75 font-medium">{authorName}</span>
+						</span>
 						{isOwn && (
 							<Badge size="xs" variant="primary">
 								Você
 							</Badge>
 						)}
-					</p>
-					<p className="text-base-content/55 text-xs">
-						{formatDateTime(interview.createdAt)}
-						{edited && ` · editado em ${formatDateTime(interview.updatedAt)}`}
+						{edited && <span>· editado em {formatDateTime(interview.updatedAt)}</span>}
 					</p>
 				</div>
 				{isOwn && (
 					<div className="-mt-1 -mr-2 flex shrink-0">
 						<button
 							type="button"
-							aria-label="Editar meu registro"
+							aria-label={`Editar registro de ${candidateName}`}
 							onClick={onEdit}
 							className="btn btn-ghost btn-sm btn-square">
 							<RiEditLine className="size-4" />
 						</button>
 						<button
 							type="button"
-							aria-label="Remover meu registro"
+							aria-label={`Remover registro de ${candidateName}`}
 							onClick={onDelete}
 							className="btn btn-ghost btn-sm btn-square text-error">
 							<RiDeleteBinLine className="size-4" />

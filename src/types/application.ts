@@ -1,6 +1,6 @@
 /**
  * Candidatura: vínculo entre um perfil de candidato e uma vaga
- * (`JobApplication` no banco da API).
+ * (`JobApplication` na API).
  */
 export type JobApplication = {
 	profileId: string;
@@ -11,6 +11,4 @@ export type JobApplication = {
 
 export type CreateApplicationInput = {
 	profileId: string;
-	/** Só o mock usa — a API real resolve o nome pelo `profileId`. */
-	profileName: string;
 };

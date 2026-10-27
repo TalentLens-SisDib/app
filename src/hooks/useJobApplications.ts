@@ -48,7 +48,7 @@ export function useJobApplications(jobOpeningId: string) {
 			try {
 				for (const profile of profiles) {
 					created.push(
-						await createApplication(jobOpeningId, {profileId: profile.id, profileName: profile.name}),
+						await createApplication(jobOpeningId, {profileId: profile.id}),
 					);
 				}
 			} finally {

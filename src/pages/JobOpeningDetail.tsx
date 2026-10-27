@@ -66,6 +66,13 @@ export default function JobOpeningDetail(): JSX.Element {
 	const [deletingStep, setDeletingStep] = useState(false);
 
 	const userNames = useMemo(() => new Map(users.map((user) => [user.id, user.name])), [users]);
+	const candidates = useMemo(
+		() =>
+			applications.applications
+				.map((application) => ({id: application.profileId, name: application.profileName}))
+				.sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+		[applications.applications],
+	);
 
 	// Seção ativa vem da URL: `?etapa=<id>` abre a etapa, `?secao=candidatos` os candidatos;
 	// sem nenhum (ou com valor inválido), "Sobre a vaga".
@@ -304,6 +311,9 @@ export default function JobOpeningDetail(): JSX.Element {
 							step={selectedStep}
 							currentUserId={session.user.id}
 							userNames={userNames}
+							candidates={candidates}
+							candidatesLoading={applications.loading}
+							onGoToCandidates={() => selectSection(CANDIDATES_SECTION)}
 						/>
 					) : (
 						<>

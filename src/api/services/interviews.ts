@@ -5,23 +5,103 @@ import type {
 	UpdateInterviewInput,
 } from "../../types/interview";
 
-export function getInterviews(stepId: string): Promise<Interview[]> {
-	return apiClient.get<Interview[]>(`/steps/${stepId}/interviews`);
+// Formatos da API (ver `types/interview.ts` para o modelo usado no app).
+type ApiProfileInterview = {
+	id: string;
+	interviewId: string;
+	profileId: string;
+	transcript: string;
+	/** A API devolve a lista serializada como string JSON (`"[\"a\",\"b\"]"`). */
+	keyTakeaways: string | string[];
+	startDate: string;
+	createdAt: string;
+	updatedAt: string;
+};
+
+type ApiInterview = {
+	id: string;
+	userId: number;
+	stepId: string;
+	profileInterviews?: ApiProfileInterview[];
+	createdAt: string;
+	updatedAt: string;
+};
+
+function parseTakeaways(value: string | string[] | null | undefined): string[] {
+	if (Array.isArray(value)) return value;
+	if (!value) return [];
+	try {
+		const parsed: unknown = JSON.parse(value);
+		return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [];
+	} catch {
+		return [];
+	}
 }
 
-/** Cria o registro do usuário logado — a API recusa um segundo registro na mesma etapa. */
-export function createInterview(stepId: string, data: CreateInterviewInput): Promise<Interview> {
-	return apiClient.post<Interview>(`/steps/${stepId}/interviews`, data);
+function toInterview(interview: Pick<ApiInterview, "userId" | "stepId">, record: ApiProfileInterview): Interview {
+	return {
+		id: record.id,
+		interviewId: record.interviewId,
+		stepId: interview.stepId,
+		userId: interview.userId,
+		profileId: record.profileId,
+		transcript: record.transcript,
+		keyTakeaways: parseTakeaways(record.keyTakeaways),
+		startDate: record.startDate,
+		createdAt: record.createdAt,
+		updatedAt: record.updatedAt,
+	};
 }
 
-export function updateInterview(
-	stepId: string,
-	id: string,
+/** Todos os registros de candidatos da etapa. Entrevistas sem registro são ignoradas. */
+export async function getInterviews(stepId: string): Promise<Interview[]> {
+	const interviews = await apiClient.get<ApiInterview[]>(`/steps/${stepId}/interviews`);
+	return interviews.flatMap((interview) =>
+		(interview.profileInterviews ?? []).map((record) => toInterview(interview, record)),
+	);
+}
+
+/**
+ * Cria a entrevista do usuário logado na etapa e, dentro dela, o registro do
+ * candidato. Se o registro falhar (ex.: candidato não vinculado à vaga), a
+ * entrevista recém-criada é removida para não sobrar vazia.
+ */
+export async function createInterview(stepId: string, data: CreateInterviewInput): Promise<Interview> {
+	const interview = await apiClient.post<ApiInterview>(`/steps/${stepId}/interviews`, {});
+	try {
+		const record = await apiClient.post<ApiProfileInterview>(
+			`/profiles/${data.profileId}/add-interview`,
+			{
+				interviewId: interview.id,
+				transcript: data.transcript,
+				keyTakeaways: data.keyTakeaways ?? [],
+				...(data.startDate ? {startDate: data.startDate} : {}),
+			},
+		);
+		return toInterview(interview, record);
+	} catch (error) {
+		await apiClient.delete<void>(`/steps/${stepId}/interviews/${interview.id}`).catch(() => undefined);
+		throw error;
+	}
+}
+
+export async function updateInterview(
+	interview: Interview,
 	data: UpdateInterviewInput,
 ): Promise<Interview> {
-	return apiClient.patch<Interview>(`/steps/${stepId}/interviews/${id}`, data);
+	const record = await apiClient.patch<ApiProfileInterview>(
+		`/profiles/${interview.profileId}/interviews/${interview.id}`,
+		data,
+	);
+	return toInterview(interview, record);
 }
 
-export function deleteInterview(stepId: string, id: string): Promise<void> {
-	return apiClient.delete<void>(`/steps/${stepId}/interviews/${id}`);
+/**
+ * Remove o registro. Se era o único da entrevista, remove a entrevista inteira
+ * (o que apaga o registro em cascata) para não deixar entrevista vazia.
+ */
+export function deleteInterview(interview: Interview, lastInInterview: boolean): Promise<void> {
+	return lastInInterview
+		? apiClient.delete<void>(`/steps/${interview.stepId}/interviews/${interview.interviewId}`)
+		: apiClient.delete<void>(`/profiles/${interview.profileId}/interviews/${interview.id}`);
 }

@@ -16,8 +16,8 @@ api/
     ├── skills.ts      getSkills, createSkill, updateSkill, deleteSkill
     ├── jobOpenings.ts getJobOpenings, getJobOpening, createJobOpening, updateJobOpening, deleteJobOpening
     ├── steps.ts       getSteps, createStep, updateStep, deleteStep (aninhado em /job-openings/{id})
-    ├── interviews.ts  getInterviews, createInterview, updateInterview, deleteInterview (aninhado em /steps/{id})
-    ├── applications.ts  ⚠ MOCK — getApplications, getProfileApplications, createApplication, deleteApplication
+    ├── interviews.ts  getInterviews, createInterview, updateInterview, deleteInterview (/steps/{id}/interviews + /profiles/{id}/interviews)
+    ├── applications.ts  getApplications, getProfileApplications, createApplication, deleteApplication
     └── resumeImports.ts  seleção de arquivos + importação de currículos
 ```
 
@@ -60,26 +60,41 @@ Os recursos são aninhados na API: **vaga → etapas (`steps`) → registros de 
   Windows-1252), `.docx` (mammoth, carregado sob demanda) e legendas `.vtt`/`.srt` exportadas por
   Teams/Zoom/Meet (falas agrupadas por pessoa). A API recebe apenas o HTML final.
 - Competências: qualquer usuário cria (nome único, 409 se repetido); editar e remover é só para Admin.
-- Etapas têm `order` único por vaga; a API devolve 400 quando a ordem já existe.
-- Cada usuário tem no máximo **um** registro de entrevista por etapa, e só o autor edita ou remove o
-  próprio registro. Vaga (e, na UI, suas etapas) só é gerenciada pelo criador ou por um Admin
-  (`utils/permissions.ts`).
+- Etapas têm `order` único por vaga (409 quando a ordem já existe — validado também no formulário).
+  Vaga (e, na UI, suas etapas) só é gerenciada pelo criador ou por um Admin (`utils/permissions.ts`).
 
-## Candidaturas (mock)
+## Entrevistas
 
-A API ainda não expõe o vínculo candidato × vaga (o model `JobApplication` existe no banco, sem
-endpoints). `services/applications.ts` simula o contrato proposto, guardando os dados em
-`localStorage` (`mock_job_applications`) — **visível só neste navegador**:
+Na API são dois recursos:
+
+```text
+POST   /steps/{stepId}/interviews                         {}  → Interview (do usuário logado)
+POST   /profiles/{id}/add-interview  {interviewId, transcript, keyTakeaways?, startDate?} → ProfileInterview
+PATCH  /profiles/{id}/interviews/{profileInterviewId}     {transcript?, keyTakeaways?, startDate?}
+DELETE /profiles/{id}/interviews/{profileInterviewId}
+DELETE /steps/{stepId}/interviews/{id}                    (apaga também os registros, em cascata)
+```
+
+O app trata os dois como **um registro** (`types/interview.ts`): cada "Registrar entrevista" cria
+uma `Interview` e um `ProfileInterview` dentro dela. Se o segundo passo falhar, a entrevista vazia
+é removida; ao remover o último registro de uma entrevista, a entrevista inteira é removida.
+
+- Uma etapa aceita vários registros, inclusive do mesmo usuário e do mesmo candidato.
+- O candidato precisa estar vinculado à vaga (400 caso contrário); só o dono da entrevista cria,
+  edita e remove (403).
+- ⚠ `keyTakeaways` chega da API como **string JSON** (`"[\"a\"]"`), embora seja enviado como
+  array — `services/interviews.ts` converte.
+
+## Candidaturas
 
 ```text
 GET    /job-openings/{id}/applications              → JobApplication[]
 POST   /job-openings/{id}/applications  {profileId} → JobApplication (409 se já vinculado)
-DELETE /job-openings/{id}/applications/{profileId}
+DELETE /job-openings/{id}/applications/{profileId}  (204)
 ```
 
-`getProfileApplications` corresponde ao campo `applications` de `GET /profiles/{id}`. Quando a API
-existir, troque o corpo das funções por `apiClient` — a assinatura não muda (`profileName` em
-`CreateApplicationInput` deixa de ser necessário).
+Vincular e desvincular: só o dono da vaga ou um Admin (403). As vagas de um perfil vêm no campo
+`applications` de `GET /profiles/{id}` (`getProfileApplications`).
 
 ## Importação de currículos
 
