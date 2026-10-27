@@ -4,13 +4,13 @@ Camada de consumo de API, independente de React/DaisyUI — nada aqui importa co
 
 ```text
 api/
-├── client.ts          transporte HTTP (fetch, headers, auth token, multipart, parsing)
+├── client.ts          transporte HTTP (fetch, headers, auth token, renovação em 401, multipart, parsing)
 ├── errors.ts          ApiError + taxonomia de erro (network/validation/unauthorized/not_found/server)
-├── session.ts          sessão mockada (localStorage) — único lugar que chama setAuthToken
+├── session.ts          sessão (usuário + tokens, localStorage) — único lugar que chama setAuthToken
 ├── types/              um arquivo por entidade de domínio
 │   └── user.ts         User, UserRole, UserStatus
 └── services/
-    ├── auth.ts        login, logout, getCurrentUser
+    ├── auth.ts        login, logout, getCurrentUser, initAuth (renovação automática do token)
     ├── users.ts       getUsers, getUser, createUser, updateUser, deleteUser
     ├── profiles.ts    getProfiles, getProfile, uploadCv, deleteProfile
     ├── skills.ts      getSkills, createSkill, updateSkill, deleteSkill
@@ -25,9 +25,27 @@ api/
 
 - **`client.ts`**: URL base (`VITE_API_URL`), `Content-Type`, serialização do body, token de autenticação (`setAuthToken`, guardado em memória e anexado como `Authorization` automaticamente), e conversão de qualquer falha em `ApiError`.
 - **`errors.ts`**: `ApiError` com `kind` (`network`, `validation`, `unauthorized`, `not_found`, `server`, `unknown`) — a UI decide como exibir cada caso; nenhum `Toast`/`Alert` é importado aqui.
-- **`session.ts`**: sessão mockada (usuário + token) persistida em `localStorage`, sincronizada com `client.ts` via `setAuthToken`. Consumida pela UI através do hook `hooks/useSession.ts` (não vive em `api/` porque usa React).
+- **`session.ts`**: sessão (usuário, access token, refresh token e sua validade) persistida em `localStorage`, sincronizada com `client.ts` via `setAuthToken`. Consumida pela UI através do hook `hooks/useSession.ts` (não vive em `api/` porque usa React).
 - **`types/*.ts`**: um arquivo por entidade de domínio (`User` hoje; `Candidate`, `Job`, `Evaluation` depois) — tipos que os services devolvem, sem lógica.
-- **`services/*.ts`**: uma função por operação de domínio, sem lógica de header/token/URL — só chamam `apiClient.get/post/patch/delete` (ou, por ora, o mock de `auth.ts`).
+- **`services/*.ts`**: uma função por operação de domínio, sem lógica de header/token/URL — só chamam `apiClient.get/post/patch/delete` (alguns ainda são mocks; ver as seções abaixo).
+
+## Autenticação e renovação do token
+
+1. `POST /login` devolve o access token (1 h) e o refresh token (7 dias); ambos vão para a sessão.
+   Os dados do usuário saem das claims do access token (a API não tem `/me`).
+2. Quando uma chamada autenticada recebe **401**, `client.ts` chama o renovador registrado por
+   `initAuth()` (em `main.tsx`): `POST /login/refresh` com o **refresh token no header
+   `Authorization`**. Com o token novo, a chamada original é repetida uma única vez.
+3. Chamadas que recebem 401 ao mesmo tempo compartilham **uma** renovação (`refreshInFlight`).
+4. Se o refresh responder 401 (vencido ou inválido), a sessão é encerrada com `expired: true`:
+   o `AppLayout` redireciona para `/login`, que avisa "Sua sessão expirou". Falha de rede no
+   refresh **não** derruba a sessão — a próxima chamada tenta de novo.
+5. A API não renova o refresh token: depois de 7 dias do login, é preciso entrar novamente.
+   Sessões antigas (sem refresh token) ou com refresh vencido são descartadas ao abrir o app.
+
+`client.ts` não importa a sessão: recebe o renovador por `setTokenRefresher`, o que evita a
+dependência circular `client ↔ session`. Use `skipAuthRefresh` em chamadas que não devem
+disparar renovação (o próprio login e o refresh).
 
 ## Vagas, etapas e entrevistas
 
