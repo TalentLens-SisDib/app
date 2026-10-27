@@ -34,7 +34,7 @@ export default function LinkToJobDialog({
 		loading: applicationsLoading,
 		error: applicationsError,
 		link,
-	} = useProfileApplications(profile.id, profile.name);
+	} = useProfileApplications(profile.id);
 	const [search, setSearch] = useState("");
 	const [selected, setSelected] = useState<Set<string>>(new Set());
 	const [submitting, setSubmitting] = useState(false);

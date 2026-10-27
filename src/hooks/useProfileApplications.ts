@@ -6,7 +6,7 @@ import type {JobApplication} from "../types/application";
 const GENERIC_ERROR = "Não foi possível carregar as vagas do candidato.";
 
 /** Vagas às quais um perfil já está vinculado, com a ação de vincular a novas. */
-export function useProfileApplications(profileId: string, profileName: string) {
+export function useProfileApplications(profileId: string) {
 	const [applications, setApplications] = useState<JobApplication[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -39,14 +39,14 @@ export function useProfileApplications(profileId: string, profileName: string) {
 			const created: JobApplication[] = [];
 			try {
 				for (const jobOpeningId of jobOpeningIds) {
-					created.push(await createApplication(jobOpeningId, {profileId, profileName}));
+					created.push(await createApplication(jobOpeningId, {profileId}));
 				}
 			} finally {
 				if (created.length > 0) setApplications((prev) => [...prev, ...created]);
 			}
 			return created;
 		},
-		[profileId, profileName],
+		[profileId],
 	);
 
 	return {applications, loading, error, link};
