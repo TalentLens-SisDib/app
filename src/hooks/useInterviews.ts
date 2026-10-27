@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import {isApiError} from "../api/errors";
 import {
 	createInterview,
@@ -23,6 +23,11 @@ export function useInterviews(stepId: string) {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [reloadToken, setReloadToken] = useState(0);
+	// Update/remove precisam do registro completo (ids do perfil e da entrevista).
+	const interviewsRef = useRef(interviews);
+	useEffect(() => {
+		interviewsRef.current = interviews;
+	}, [interviews]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -58,22 +63,23 @@ export function useInterviews(stepId: string) {
 		[stepId],
 	);
 
-	const update = useCallback(
-		async (id: string, data: UpdateInterviewInput) => {
-			const interview = await updateInterview(stepId, id, data);
-			setInterviews((prev) => prev.map((item) => (item.id === id ? interview : item)));
-			return interview;
-		},
-		[stepId],
-	);
+	const update = useCallback(async (id: string, data: UpdateInterviewInput) => {
+		const current = interviewsRef.current.find((item) => item.id === id);
+		if (!current) throw new Error(`Registro ${id} não encontrado.`);
+		const interview = await updateInterview(current, data);
+		setInterviews((prev) => prev.map((item) => (item.id === id ? interview : item)));
+		return interview;
+	}, []);
 
-	const remove = useCallback(
-		async (id: string) => {
-			await deleteInterview(stepId, id);
-			setInterviews((prev) => prev.filter((item) => item.id !== id));
-		},
-		[stepId],
-	);
+	const remove = useCallback(async (id: string) => {
+		const current = interviewsRef.current.find((item) => item.id === id);
+		if (!current) return;
+		const siblings = interviewsRef.current.filter(
+			(item) => item.interviewId === current.interviewId && item.id !== id,
+		);
+		await deleteInterview(current, siblings.length === 0);
+		setInterviews((prev) => prev.filter((item) => item.id !== id));
+	}, []);
 
 	return {interviews, loading, error, reload, create, update, remove};
 }

@@ -1,6 +1,6 @@
 import {useRef, useState, type DragEvent, type SubmitEvent, type JSX} from "react";
 import {RiUploadCloud2Line} from "@remixicon/react";
-import {Alert, Button, RichTextEditor, TagInput} from "../ui";
+import {Alert, Button, Input, RichTextEditor, Select, TagInput} from "../ui";
 import {toast} from "../ui/toastStore";
 import {isApiError} from "../../api/errors";
 import type {CreateInterviewInput, Interview} from "../../types/interview";
@@ -14,12 +14,26 @@ import {
 const TAKEAWAY_MAX_LENGTH = 255;
 const GENERIC_FORM_ERROR = "Não foi possível salvar o registro. Tente novamente.";
 
+export type InterviewCandidate = {id: string; name: string};
+
 export type InterviewEditorProps = {
 	/** Registro em edição; ausente para um registro novo. */
 	interview?: Interview;
+	/** Candidatos vinculados à vaga. Na edição, só serve para exibir o nome. */
+	candidates: InterviewCandidate[];
+	/** Candidato pré-selecionado num registro novo (ex.: filtro ativo no painel). */
+	defaultProfileId?: string;
 	onCancel: () => void;
 	onSubmit: (data: CreateInterviewInput) => Promise<unknown>;
 };
+
+/** ISO → valor de `<input type="datetime-local">` no fuso local. */
+function toLocalInput(iso: string): string {
+	const date = new Date(iso);
+	if (Number.isNaN(date.getTime())) return "";
+	const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+	return local.toISOString().slice(0, 16);
+}
 
 function hasFiles(event: DragEvent): boolean {
 	return Array.from(event.dataTransfer.types).includes("Files");
@@ -28,10 +42,22 @@ function hasFiles(event: DragEvent): boolean {
 /** Formulário inline do registro de entrevista — abre no próprio painel da etapa. */
 export default function InterviewEditor({
 	interview,
+	candidates,
+	defaultProfileId,
 	onCancel,
 	onSubmit,
 }: InterviewEditorProps): JSX.Element {
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const [profileId, setProfileId] = useState(() => {
+		if (interview) return interview.profileId;
+		if (candidates.some((item) => item.id === defaultProfileId)) return defaultProfileId ?? "";
+		// Com um único candidato, já vem escolhido.
+		return candidates.length === 1 ? candidates[0].id : "";
+	});
+	const [profileError, setProfileError] = useState<string | undefined>();
+	const [startDate, setStartDate] = useState(() =>
+		toLocalInput(interview?.startDate ?? new Date().toISOString()),
+	);
 	const [transcript, setTranscript] = useState(interview?.transcript ?? "");
 	const [keyTakeaways, setKeyTakeaways] = useState<string[]>(interview?.keyTakeaways ?? []);
 	const [transcriptError, setTranscriptError] = useState<string | undefined>();
@@ -77,16 +103,23 @@ export default function InterviewEditor({
 		event.preventDefault();
 		if (submitting) return;
 
+		const nextProfileError = profileId ? undefined : "Escolha o candidato entrevistado.";
 		const nextTranscriptError = transcript
 			? undefined
 			: "Registre a transcrição ou as anotações da entrevista.";
+		setProfileError(nextProfileError);
 		setTranscriptError(nextTranscriptError);
 		setFormError(null);
-		if (nextTranscriptError) return;
+		if (nextProfileError || nextTranscriptError) return;
 
 		setSubmitting(true);
 		try {
-			await onSubmit({transcript, keyTakeaways});
+			await onSubmit({
+				profileId,
+				transcript,
+				keyTakeaways,
+				...(startDate ? {startDate: new Date(startDate).toISOString()} : {}),
+			});
 		} catch (err) {
 			setFormError(isApiError(err) ? err.message : GENERIC_FORM_ERROR);
 		} finally {
@@ -108,6 +141,45 @@ export default function InterviewEditor({
 					{formError}
 				</Alert>
 			)}
+
+			<div className="grid gap-4 sm:grid-cols-[1fr_14rem]">
+				{interview ? (
+					<div className="ds-field">
+						<p className="ds-field-label">Candidato</p>
+						<p className="py-2 text-sm font-medium">
+							{candidates.find((item) => item.id === interview.profileId)?.name ??
+								"Candidato removido da vaga"}
+						</p>
+					</div>
+				) : (
+					<Select
+						label="Candidato"
+						required
+						value={profileId}
+						disabled={submitting}
+						onChange={(event) => {
+							setProfileId(event.target.value);
+							setProfileError(undefined);
+						}}
+						error={profileError}>
+						<option value="" disabled>
+							Selecione o candidato entrevistado
+						</option>
+						{candidates.map((candidate) => (
+							<option key={candidate.id} value={candidate.id}>
+								{candidate.name}
+							</option>
+						))}
+					</Select>
+				)}
+				<Input
+					label="Data da entrevista"
+					type="datetime-local"
+					value={startDate}
+					disabled={submitting}
+					onChange={(event) => setStartDate(event.target.value)}
+				/>
+			</div>
 
 			<div
 				className="relative"
