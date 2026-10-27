@@ -4,6 +4,7 @@ import Brand from "../components/layout/Brand";
 import {Alert, Button, Card, Input} from "../components/ui";
 import {isApiError} from "../api/errors";
 import {login} from "../api/services/auth";
+import {wasSessionExpired} from "../api/session";
 
 type FormErrors = {
 	email?: string;
@@ -21,6 +22,7 @@ export default function Login(): JSX.Element {
 	const [errors, setErrors] = useState<FormErrors>({});
 	const [loading, setLoading] = useState(false);
 	const [formError, setFormError] = useState<string | null>(null);
+	const [sessionExpired, setSessionExpired] = useState(wasSessionExpired);
 
 	async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -33,6 +35,7 @@ export default function Login(): JSX.Element {
 
 		setErrors(nextErrors);
 		setFormError(null);
+		setSessionExpired(false);
 		if (Object.keys(nextErrors).length > 0) return;
 
 		setLoading(true);
@@ -79,6 +82,11 @@ export default function Login(): JSX.Element {
 
 					<Card variant="subtle" padding="lg">
 						<form className="space-y-5" noValidate onSubmit={handleSubmit}>
+							{sessionExpired && !formError && (
+								<Alert variant="info" title="Sua sessão expirou">
+									Entre novamente para continuar.
+								</Alert>
+							)}
 							{formError && (
 								<Alert variant="error" title="Não foi possível entrar">
 									{formError}

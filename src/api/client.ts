@@ -10,8 +10,35 @@ export function setAuthToken(token: string | null): void {
 	authToken = token;
 }
 
+/**
+ * Renova o access token quando a API responde 401. Registrado por
+ * `services/auth.ts` (via `initAuth`) para o client não depender da sessão.
+ * Devolve o novo token, ou `null` se não foi possível renovar.
+ */
+type TokenRefresher = () => Promise<string | null>;
+
+let tokenRefresher: TokenRefresher | null = null;
+let refreshInFlight: Promise<string | null> | null = null;
+
+export function setTokenRefresher(refresher: TokenRefresher | null): void {
+	tokenRefresher = refresher;
+}
+
+/** Várias chamadas recebendo 401 ao mesmo tempo compartilham uma única renovação. */
+function refreshOnce(): Promise<string | null> {
+	if (!tokenRefresher) return Promise.resolve(null);
+	refreshInFlight ??= tokenRefresher()
+		.catch(() => null)
+		.finally(() => {
+			refreshInFlight = null;
+		});
+	return refreshInFlight;
+}
+
 export type ApiRequestOptions = Omit<RequestInit, "body"> & {
 	body?: unknown;
+	/** Não tenta renovar o token em caso de 401 (login e o próprio refresh). */
+	skipAuthRefresh?: boolean;
 };
 
 /**
@@ -44,29 +71,39 @@ async function request<T>(
 	path: string,
 	options: ApiRequestOptions = {},
 ): Promise<T> {
-	const {body, headers, ...rest} = options;
+	const {body, headers, skipAuthRefresh, ...rest} = options;
+	const multipart = isMultipart(body);
 
-	let response: Response;
-	try {
-		const multipart = isMultipart(body);
+	async function send(token: string | null): Promise<Response> {
+		try {
+			return await fetch(`${baseUrl}${path}`, {
+				...rest,
+				headers: {
+					...(multipart ? {} : {"Content-Type": "application/json"}),
+					...(token ? {Authorization: `Bearer ${token}`} : {}),
+					...headers,
+				},
+				body: multipart
+					? body
+					: body !== undefined
+						? JSON.stringify(body)
+						: undefined,
+			});
+		} catch (error) {
+			// Cancelamento não é falha de rede: o chamador precisa do AbortError.
+			if (error instanceof DOMException && error.name === "AbortError") throw error;
+			throw new ApiError("Não foi possível conectar à API.", "network");
+		}
+	}
 
-		response = await fetch(`${baseUrl}${path}`, {
-			...rest,
-			headers: {
-				...(multipart ? {} : {"Content-Type": "application/json"}),
-				...(authToken ? {Authorization: `Bearer ${authToken}`} : {}),
-				...headers,
-			},
-			body: multipart
-				? body
-				: body !== undefined
-					? JSON.stringify(body)
-					: undefined,
-		});
-	} catch (error) {
-		// Cancelamento não é falha de rede: o chamador precisa do AbortError.
-		if (error instanceof DOMException && error.name === "AbortError") throw error;
-		throw new ApiError("Não foi possível conectar à API.", "network");
+	const sentToken = authToken;
+	let response = await send(sentToken);
+
+	// Access token expirado: renova uma vez e repete a chamada. Se outra chamada
+	// já renovou enquanto esta estava no ar, reaproveita o token novo.
+	if (response.status === 401 && sentToken && !skipAuthRefresh) {
+		const freshToken = authToken && authToken !== sentToken ? authToken : await refreshOnce();
+		if (freshToken) response = await send(freshToken);
 	}
 
 	if (!response.ok) {
