@@ -1,4 +1,5 @@
 import {useMemo, useState, type JSX} from "react";
+import {Link} from "react-router-dom";
 import {RiCloseLine, RiTeamLine, RiUserAddLine} from "@remixicon/react";
 import {Alert, Badge, Button, Dialog, Spinner} from "../ui";
 import {toast} from "../ui/toastStore";
@@ -231,7 +232,13 @@ function CandidateRow({row, showMatch, canManage, onUnlink}: CandidateRowProps):
 
 			<div className="min-w-0 flex-1">
 				<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-					<p className="truncate text-sm font-medium">{name}</p>
+					<p className="truncate text-sm font-medium">
+						{profile ? (
+							<Link to={`/candidatos/${profile.id}`} className="hover:text-primary hover:underline">
+								{name}
+							</Link>
+						) : name}
+					</p>
 					{showMatch && match.requiredTotal > 0 && (
 						<Badge size="xs" variant={allRequired ? "success" : match.requiredMatched > 0 ? "warning" : "ghost"}>
 							{match.requiredMatched}/{match.requiredTotal} obrigatórias

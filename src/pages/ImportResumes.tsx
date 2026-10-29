@@ -1,4 +1,5 @@
 import {useRef, useState, type DragEvent, type JSX} from "react";
+import {Link, useNavigate} from "react-router-dom";
 import {
 	RiAddLine,
 	RiArrowDownSLine,
@@ -77,6 +78,7 @@ function plural(count: number, one: string, many: string): string {
 }
 
 export default function ImportResumes(): JSX.Element {
+	const navigate = useNavigate();
 	const {
 		step,
 		files,
@@ -147,6 +149,10 @@ export default function ImportResumes(): JSX.Element {
 
 	function scrollToPending() {
 		document.getElementById("pendencias")?.scrollIntoView({behavior: "smooth", block: "start"});
+	}
+
+	function scrollToImported() {
+		document.getElementById("perfis-importados")?.scrollIntoView({behavior: "smooth", block: "start"});
 	}
 
 	const attentionResults = results.filter((result) => result.outcome !== "done");
@@ -410,15 +416,12 @@ export default function ImportResumes(): JSX.Element {
 						</p>
 
 						<div className="mt-5 flex flex-wrap items-center gap-2">
-							<Button
-								onClick={() =>
-									toast.info(
-										`Destino: lista de candidatos, filtrada pelos ${summary.imported} importados nesta operação.`,
-									)
-								}>
-								<RiTeamLine className="size-5" />
-								Ver candidatos
-							</Button>
+							{importedResults.length > 0 && (
+								<Button onClick={scrollToImported}>
+									<RiTeamLine className="size-5" />
+									Ver perfis importados
+								</Button>
+							)}
 							{attentionResults.length > 0 && (
 								<Button variant="outline" onClick={scrollToPending}>
 									<RiClipboardLine className="size-5" />
@@ -512,6 +515,13 @@ export default function ImportResumes(): JSX.Element {
 											</div>
 											<div className="flex flex-wrap gap-2">
 												{!failed && renderLinkAction(result)}
+												{result.profileId && (
+													<Link
+														to={`/candidatos/${result.profileId}`}
+														className="btn btn-outline btn-sm">
+														Ver perfil
+													</Link>
+												)}
 												<Button
 													variant="outline"
 													size="sm"
@@ -528,7 +538,9 @@ export default function ImportResumes(): JSX.Element {
 
 					{importedResults.length > 0 && (
 						<details className="group" open>
-							<summary className="mt-6 mb-2 flex cursor-pointer list-none items-center gap-2 font-semibold">
+							<summary
+								id="perfis-importados"
+								className="mt-6 mb-2 flex scroll-mt-6 cursor-pointer list-none items-center gap-2 font-semibold">
 								Importados com sucesso
 								<Badge variant="success">{importedResults.length}</Badge>
 								<RiArrowDownSLine className="text-base-content/60 ml-auto size-5 transition-transform group-open:rotate-180" />
@@ -549,6 +561,13 @@ export default function ImportResumes(): JSX.Element {
 												{result.fileName}
 											</p>
 										</div>
+										{result.profileId && (
+											<Link
+												to={`/candidatos/${result.profileId}`}
+												className="btn btn-outline btn-sm">
+												Ver perfil
+											</Link>
+										)}
 										{renderLinkAction(result) ?? (
 											<Badge variant="success" size="sm">
 												Importado
@@ -591,10 +610,13 @@ export default function ImportResumes(): JSX.Element {
 							onClick={() => {
 								const failed = detail?.outcome === "failed";
 								const name = detail?.candidateName ?? detail?.fileName ?? "";
+								const profileId = detail?.profileId;
 								setDetail(null);
 								if (failed) {
 									reset();
 									toast.info("Selecione o arquivo corrigido para importar novamente.");
+								} else if (profileId) {
+									navigate(`/candidatos/${profileId}`);
 								} else {
 									toast.info(`Destino: perfil de ${name}, com os campos pendentes destacados.`);
 								}

@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "check:job-criteria": "node --experimental-strip-types scripts/jobCriteriaSelfcheck.mts",
+    "check:resume-import": "node --experimental-strip-types scripts/resumeImportSelfcheck.mts",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -1,5 +1,5 @@
 import {apiClient} from "../client";
-import type {Profile} from "../../types/profile";
+import type {Profile, UpdateProfileInput} from "../../types/profile";
 
 export function getProfiles(): Promise<Profile[]> {
 	return apiClient.get<Profile[]>("/profiles");
@@ -7,6 +7,10 @@ export function getProfiles(): Promise<Profile[]> {
 
 export function getProfile(id: string, signal?: AbortSignal): Promise<Profile> {
 	return apiClient.get<Profile>(`/profiles/${id}`, {signal});
+}
+
+export function updateProfile(id: string, data: UpdateProfileInput): Promise<Profile> {
+	return apiClient.patch<Profile>(`/profiles/${id}`, data);
 }
 
 /**
