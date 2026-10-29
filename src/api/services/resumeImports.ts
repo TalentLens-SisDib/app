@@ -92,10 +92,13 @@ function hasText(value: string | null | undefined): boolean {
 
 /** O que ficou faltando no perfil lido — vira a lista de pendências na tela. */
 function pendingIssues(profile: Profile): string[] {
-	const issues: string[] = [];
+	const issues: string[] = [...(profile.qualityIssues ?? [])];
 	if (!hasText(profile.description)) issues.push("Resumo profissional não identificado");
 	if ((profile.skills?.length ?? 0) === 0) issues.push("Competências não identificadas");
-	return issues;
+	if ((profile.educationalBackground?.length ?? 0) === 0) {
+		issues.push("Formação acadêmica não identificada; revise se aplicável");
+	}
+	return [...new Set(issues)];
 }
 
 function successResult(

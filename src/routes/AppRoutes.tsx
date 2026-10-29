@@ -8,6 +8,7 @@ import JobOpeningDetail from "../pages/JobOpeningDetail";
 import JobOpenings from "../pages/JobOpenings";
 import Login from "../pages/Login";
 import NotFound from "../pages/NotFound";
+import ProfileDetail from "../pages/ProfileDetail";
 import Skills from "../pages/Skills";
 import UiPlayground from "../pages/UiPlayground";
 import Users from "../pages/Users";
@@ -22,6 +23,7 @@ export default function AppRoutes(): JSX.Element {
 			<Route element={<AppLayout />}>
 				<Route path="/" element={<Dashboard />} />
 				<Route path="/candidatos/importar" element={<ImportResumes />} />
+				<Route path="/candidatos/:id" element={<ProfileDetail />} />
 				<Route path="/ui-playground" element={<UiPlayground />} />
 				<Route path="/usuarios" element={<Users />} />
 				<Route path="/vagas" element={<JobOpenings />} />
