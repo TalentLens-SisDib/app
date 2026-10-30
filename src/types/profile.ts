@@ -37,6 +37,13 @@ export type ProfileInterview = {
 	updatedAt: string;
 };
 
+/** Vínculo do perfil com uma vaga, como vem embutido em `GET /profiles`. */
+export type ProfileApplication = {
+	profileId: string;
+	jobOpeningId: string;
+	appliedAt: string;
+};
+
 export type UpdateProfileInput = {
 	name?: string;
 	description?: string;
@@ -54,6 +61,7 @@ export type Profile = {
 	culturalFits?: ProfileCulturalFit[];
 	educationalBackground?: ProfileEducation[];
 	profileInterviews?: ProfileInterview[];
+	applications?: ProfileApplication[];
 	/** Avisos de consistência gerados apenas durante a importação do currículo. */
 	qualityIssues?: string[];
 	createdAt: string;
