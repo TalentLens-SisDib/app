@@ -1,7 +1,7 @@
 import {useMemo, useState, type JSX} from "react";
 import {Link} from "react-router-dom";
 import {RiCloseLine, RiTeamLine, RiUserAddLine} from "@remixicon/react";
-import {Alert, Badge, Button, Dialog, Spinner} from "../ui";
+import {Alert, Avatar, Badge, Button, Dialog, Spinner} from "../ui";
 import {toast} from "../ui/toastStore";
 import LinkCandidatesDialog from "./LinkCandidatesDialog";
 import {isApiError} from "../../api/errors";
@@ -224,11 +224,7 @@ function CandidateRow({row, showMatch, canManage, onUnlink}: CandidateRowProps):
 
 	return (
 		<li className="flex items-start gap-3 px-4 py-3">
-			<span
-				aria-hidden="true"
-				className="bg-base-200 text-base-content/70 grid size-9 shrink-0 place-items-center rounded-full text-sm font-semibold">
-				{name.trim().charAt(0).toUpperCase() || "?"}
-			</span>
+			<Avatar name={name} />
 
 			<div className="min-w-0 flex-1">
 				<div className="flex flex-wrap items-center gap-x-2 gap-y-1">

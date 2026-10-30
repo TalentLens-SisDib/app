@@ -10,21 +10,13 @@ import {Link, useNavigate} from "react-router-dom";
 import {logout} from "../../api/services/auth";
 import {useSession} from "../../hooks/useSession";
 import type {UserRole} from "../../types/user";
+import {initialsOf} from "../../utils/initials";
 import Brand from "./Brand";
 
 const ROLE_LABEL: Record<UserRole, string> = {
 	Admin: "Administrador",
 	Recruiter: "Recrutador",
 };
-
-/** Até duas iniciais: primeiro e último nome. */
-function initials(name: string | undefined): string {
-	const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
-	if (parts.length === 0) return "TL";
-	const first = parts[0].charAt(0);
-	const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : "";
-	return (first + last).toUpperCase();
-}
 
 export default function Navbar(): JSX.Element {
 	const navigate = useNavigate();
@@ -68,7 +60,7 @@ export default function Navbar(): JSX.Element {
 							aria-label="Menu da conta"
 							className="hover:bg-base-200 flex items-center gap-2.5 rounded-lg py-1 pr-1.5 pl-1 transition-colors">
 							<span className="bg-primary/10 text-primary ring-primary/15 grid size-8 place-items-center rounded-full text-xs font-semibold ring-1">
-								{initials(user?.name)}
+								{initialsOf(user?.name, "TL")}
 							</span>
 							{user && (
 								<span className="hidden min-w-0 text-left md:block">

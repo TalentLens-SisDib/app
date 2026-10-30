@@ -7,10 +7,22 @@ import {
 	RiDeleteBinLine,
 	RiEditLine,
 	RiMoneyDollarCircleLine,
+	RiSearchLine,
 } from "@remixicon/react";
 import PageHeader from "../components/layout/PageHeader";
 import JobOpeningFormDialog from "../components/jobOpenings/JobOpeningFormDialog";
-import {Alert, Badge, Button, Card, Dialog, Input, Spinner} from "../components/ui";
+import {
+	Button,
+	CardGridSkeleton,
+	Dialog,
+	EmptyState,
+	ErrorState,
+	IconAction,
+	ListToolbar,
+	SearchInput,
+	SegmentedControl,
+	TagList,
+} from "../components/ui";
 import {toast} from "../components/ui/toastStore";
 import {isApiError} from "../api/errors";
 import {useJobOpenings} from "../hooks/useJobOpenings";
@@ -92,149 +104,119 @@ export default function JobOpenings(): JSX.Element {
 				}
 			/>
 
-			<div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-				<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-					<div role="tablist" aria-label="Filtrar vagas" className="tabs tabs-box tabs-sm w-fit">
-						<button
-							type="button"
-							role="tab"
-							aria-selected={!mine}
-							onClick={() => setMine(false)}
-							className={["tab", !mine && "tab-active"].filter(Boolean).join(" ")}>
-							Todas
-						</button>
-						<button
-							type="button"
-							role="tab"
-							aria-selected={mine}
-							onClick={() => setMine(true)}
-							className={["tab", mine && "tab-active"].filter(Boolean).join(" ")}>
-							Minhas vagas
-						</button>
-					</div>
-					<div className="sm:w-72">
-						<Input
-							aria-label="Buscar por nome ou competência"
-							placeholder="Buscar por nome ou competência"
-							value={search}
-							onChange={(event) => setSearch(event.target.value)}
-						/>
-					</div>
-				</div>
-				{!loading && !error && (
-					<p className="text-base-content/60 shrink-0 text-sm">
-						{filtered.length} de {jobOpenings.length} vaga(s)
-					</p>
-				)}
-			</div>
+			<ListToolbar
+				count={
+					!loading && !error
+						? search.trim()
+							? `${filtered.length} de ${jobOpenings.length} vagas`
+							: `${jobOpenings.length} ${jobOpenings.length === 1 ? "vaga" : "vagas"}`
+						: undefined
+				}>
+				<SegmentedControl
+					label="Filtrar vagas"
+					value={mine ? "mine" : "all"}
+					onChange={(value) => setMine(value === "mine")}
+					options={[
+						{value: "all", label: "Todas"},
+						{value: "mine", label: "Minhas vagas"},
+					]}
+				/>
+				<SearchInput
+					label="Buscar por nome ou competência"
+					value={search}
+					onChange={setSearch}
+					className="sm:w-72"
+				/>
+			</ListToolbar>
 
 			{error ? (
-				<Alert variant="error" title="Não foi possível carregar as vagas">
-					<div className="flex flex-wrap items-center justify-between gap-3">
-						<span>{error}</span>
-						<Button size="xs" variant="ghost" onClick={reload}>
-							Tentar novamente
-						</Button>
-					</div>
-				</Alert>
+				<ErrorState title="Não foi possível carregar as vagas" message={error} onRetry={reload} />
 			) : loading ? (
-				<div className="flex flex-col items-center justify-center gap-3 py-16">
-					<Spinner />
-					<p className="text-base-content/60 text-sm">Carregando vagas...</p>
-				</div>
+				<CardGridSkeleton label="Carregando vagas" />
 			) : jobOpenings.length === 0 ? (
-				<Card>
-					<div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
-						<span className="bg-primary/10 text-primary grid size-12 place-items-center rounded-full">
-							<RiBriefcase4Line className="size-6" />
-						</span>
-						<div>
-							<p className="font-medium">
-								{mine ? "Você ainda não criou vagas" : "Nenhuma vaga cadastrada"}
-							</p>
-							<p className="text-base-content/60 mt-1 text-sm">
-								Crie uma vaga para montar as etapas do processo e registrar as entrevistas.
-							</p>
-						</div>
+				<EmptyState
+					icon={<RiBriefcase4Line className="size-5" />}
+					title={mine ? "Você ainda não criou vagas" : "Nenhuma vaga cadastrada"}
+					description="Crie uma vaga para montar as etapas do processo e receber candidatos."
+					action={
 						<Button size="sm" onClick={() => openForm(null)}>
 							<RiAddLine className="size-4" />
 							Criar vaga
 						</Button>
-					</div>
-				</Card>
+					}
+				/>
 			) : filtered.length === 0 ? (
-				<p className="text-base-content/60 py-10 text-center text-sm">
-					Nenhuma vaga encontrada para essa busca.
-				</p>
+				<EmptyState
+					icon={<RiSearchLine className="size-5" />}
+					title="Nenhuma vaga encontrada"
+					description={<>Nenhuma vaga corresponde a “{search.trim()}”. Tente outro nome ou competência.</>}
+					action={
+						<Button size="sm" variant="ghost" onClick={() => setSearch("")}>
+							Limpar busca
+						</Button>
+					}
+				/>
 			) : (
 				<ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
 					{filtered.map((job) => {
-						const skills = job.skills ?? [];
 						const canManage = canManageJobOpening(session?.user, job);
+						const description = toPlainText(job.description).trim();
 						return (
-							<li
-								key={job.id}
-								className="card border-base-300 bg-base-100 hover:border-primary/40 group relative border shadow-sm transition-colors">
-								<div className="card-body gap-3 p-5">
-									<div className="flex items-start justify-between gap-2">
-										<h2 className="min-w-0 text-base leading-6 font-semibold">
-											{/* O link cobre o card inteiro; as ações ficam acima dele (z-10). */}
-											<Link
-												to={`/vagas/${job.id}`}
-												className="group-hover:text-primary after:absolute after:inset-0 after:rounded-box">
-												{job.name}
-											</Link>
-										</h2>
-										{canManage && (
-											<div className="relative z-10 -mt-1 -mr-2 flex shrink-0">
-												<button
-													type="button"
-													aria-label={`Editar ${job.name}`}
-													onClick={() => openForm(job)}
-													className="btn btn-ghost btn-sm btn-square">
-													<RiEditLine className="size-4" />
-												</button>
-												<button
-													type="button"
-													aria-label={`Remover ${job.name}`}
-													onClick={() => setDeleteTarget(job)}
-													className="btn btn-ghost btn-sm btn-square text-error">
-													<RiDeleteBinLine className="size-4" />
-												</button>
-											</div>
-										)}
-									</div>
-
-									<p className="text-base-content/70 line-clamp-2 text-sm leading-6">
-										{toPlainText(job.description)}
-									</p>
-
-									{skills.length > 0 && (
-										<div className="flex flex-wrap gap-1.5">
-											{skills.slice(0, VISIBLE_SKILLS).map((skill) => (
-												<Badge
-													key={skill.skillId}
-													size="sm"
-													variant={skill.isRequired ? "primary" : "ghost"}>
-													{skill.skillName}
-												</Badge>
-											))}
-											{skills.length > VISIBLE_SKILLS && (
-												<Badge size="sm" variant="outline">
-													+{skills.length - VISIBLE_SKILLS}
-												</Badge>
-											)}
+							<li key={job.id} className="tl-entity-card group">
+								<div className="flex items-start justify-between gap-3">
+									<h2 className="min-w-0 text-[0.9375rem] leading-6 font-semibold">
+										{/* O link cobre o card inteiro; as ações ficam acima dele (z-10). */}
+										<Link
+											to={`/vagas/${job.id}`}
+											className="group-hover:text-primary line-clamp-2 transition-colors after:absolute after:inset-0 after:rounded-box">
+											{job.name}
+										</Link>
+									</h2>
+									{canManage && (
+										<div className="tl-row-actions relative z-10 -mt-1 -mr-1.5 flex shrink-0">
+											<IconAction
+												label={`Editar ${job.name}`}
+												icon={<RiEditLine className="size-4" />}
+												onClick={() => openForm(job)}
+											/>
+											<IconAction
+												label={`Remover ${job.name}`}
+												icon={<RiDeleteBinLine className="size-4" />}
+												danger
+												onClick={() => setDeleteTarget(job)}
+											/>
 										</div>
 									)}
+								</div>
 
-									<div className="text-base-content/60 border-base-300 mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-3 text-xs">
-										<span className="flex items-center gap-1">
-											<RiMoneyDollarCircleLine className="size-4" />
+								<p className="text-base-content/65 mt-1 line-clamp-2 text-sm leading-5">
+									{description || <span className="text-base-content/40 italic">Sem descrição</span>}
+								</p>
+
+								{(job.skills?.length ?? 0) > 0 && (
+									<div className="mt-3">
+										<TagList
+											max={VISIBLE_SKILLS}
+											items={[...(job.skills ?? [])]
+												.sort((a, b) => Number(b.isRequired) - Number(a.isRequired))
+												.map((skill) => ({
+													id: skill.skillId,
+													label: skill.skillName,
+													variant: skill.isRequired ? "primary" : "neutral",
+												}))}
+										/>
+									</div>
+								)}
+
+								<div className="mt-auto pt-4">
+									<div className="border-base-300 text-base-content/55 flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-3 text-xs">
+										<span className="text-base-content/80 flex items-center gap-1.5 font-medium tabular-nums">
+											<RiMoneyDollarCircleLine aria-hidden="true" className="text-base-content/45 size-4" />
 											{formatCurrency(job.expectedWage)}
 										</span>
-										<span className="flex items-center gap-1">
-											<RiCalendarLine className="size-4" />
-											{formatDate(job.createdAt)}
+										<span className="flex items-center gap-1.5">
+											<RiCalendarLine aria-hidden="true" className="text-base-content/45 size-4" />
+											Criada em {formatDate(job.createdAt)}
 										</span>
 									</div>
 								</div>
