@@ -1,9 +1,26 @@
 import {useMemo, useState, type SubmitEvent, type JSX} from "react";
-import {RiAddLine, RiDeleteBinLine, RiEditLine} from "@remixicon/react";
+import {RiAddLine, RiDeleteBinLine, RiEditLine, RiSearchLine, RiUserSettingsLine} from "@remixicon/react";
 import PageHeader from "../components/layout/PageHeader";
-import {Alert, Badge, Button, Card, Dialog, Input, Select, Spinner} from "../components/ui";
+import {
+	Alert,
+	Avatar,
+	Badge,
+	Button,
+	Dialog,
+	EmptyState,
+	ErrorState,
+	IconAction,
+	Input,
+	ListToolbar,
+	Pagination,
+	SearchInput,
+	Select,
+	TableSkeleton,
+} from "../components/ui";
 import {toast} from "../components/ui/toastStore";
 import {isApiError} from "../api/errors";
+import {usePagination} from "../hooks/usePagination";
+import {useSession} from "../hooks/useSession";
 import {useUsers} from "../hooks/useUsers";
 import type {CreateUserInput, User, UserRole} from "../types/user";
 
@@ -32,6 +49,7 @@ const GENERIC_FORM_ERROR = "Não foi possível salvar o usuário. Tente novament
 const GENERIC_DELETE_ERROR = "Não foi possível remover o usuário. Tente novamente.";
 
 export default function Users(): JSX.Element {
+	const session = useSession();
 	const {users, loading, error, reload, create, update, remove} = useUsers();
 	const [search, setSearch] = useState("");
 
@@ -53,6 +71,7 @@ export default function Users(): JSX.Element {
 				user.name.toLowerCase().includes(term) || user.email.toLowerCase().includes(term),
 		);
 	}, [users, search]);
+	const pagination = usePagination(filteredUsers);
 
 	function openCreate() {
 		setEditingId(null);
@@ -120,6 +139,54 @@ export default function Users(): JSX.Element {
 		}
 	}
 
+	function renderIdentity(user: User) {
+		const isMe = session?.user.id === user.id;
+		return (
+			<div className="flex min-w-0 items-center gap-3">
+				<Avatar name={user.name} />
+				<div className="min-w-0">
+					<p className="flex items-center gap-2 text-sm font-medium">
+						<span className="truncate">{user.name}</span>
+						{isMe && (
+							<Badge size="xs" variant="neutral">
+								Você
+							</Badge>
+						)}
+					</p>
+					<p className="text-base-content/55 truncate text-xs">{user.email}</p>
+				</div>
+			</div>
+		);
+	}
+
+	function renderRole(user: User) {
+		return (
+			<Badge size="sm" variant={user.role === "Admin" ? "primary" : "neutral"}>
+				{roleLabel[user.role]}
+			</Badge>
+		);
+	}
+
+	function renderActions(user: User) {
+		return (
+			<div className="tl-row-actions flex justify-end gap-0.5">
+				<IconAction
+					label={`Editar ${user.name}`}
+					icon={<RiEditLine className="size-4" />}
+					tooltipPosition="left"
+					onClick={() => openEdit(user)}
+				/>
+				<IconAction
+					label={`Remover ${user.name}`}
+					icon={<RiDeleteBinLine className="size-4" />}
+					tooltipPosition="left"
+					danger
+					onClick={() => setDeleteTarget(user)}
+				/>
+			</div>
+		);
+	}
+
 	return (
 		<>
 			<PageHeader
@@ -136,135 +203,101 @@ export default function Users(): JSX.Element {
 				}
 			/>
 
-			<Card padding="sm">
-				{error ? (
-					<Alert variant="error" title="Não foi possível carregar os usuários">
-						<div className="flex flex-wrap items-center justify-between gap-3">
-							<span>{error}</span>
-							<Button size="xs" variant="ghost" onClick={reload}>
-								Tentar novamente
-							</Button>
-						</div>
-					</Alert>
-				) : loading ? (
-					<div className="flex flex-col items-center justify-center gap-3 py-16">
-						<Spinner />
-						<p className="text-base-content/60 text-sm">Carregando usuários...</p>
-					</div>
-				) : users.length === 0 ? (
-					<div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-						<p className="text-base-content/60 text-sm">Nenhum usuário encontrado.</p>
+			<ListToolbar
+				count={
+					!loading && !error
+						? search.trim()
+							? `${filteredUsers.length} de ${users.length} usuários`
+							: `${users.length} ${users.length === 1 ? "usuário" : "usuários"}`
+						: undefined
+				}>
+				<SearchInput
+					label="Buscar por nome ou e-mail"
+					value={search}
+					onChange={setSearch}
+					className="sm:w-80"
+				/>
+			</ListToolbar>
+
+			{error ? (
+				<ErrorState title="Não foi possível carregar os usuários" message={error} onRetry={reload} />
+			) : loading ? (
+				<TableSkeleton label="Carregando usuários" columns={3} />
+			) : users.length === 0 ? (
+				<EmptyState
+					icon={<RiUserSettingsLine className="size-5" />}
+					title="Nenhum usuário cadastrado"
+					description="Convide recrutadores e administradores para trabalhar nas vagas da empresa."
+					action={
 						<Button size="sm" onClick={openCreate}>
 							<RiAddLine className="size-4" />
-							Adicionar usuário
+							Criar usuário
 						</Button>
-					</div>
-				) : (
-					<>
-						<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-							<div className="sm:max-w-xs sm:flex-1">
-								<Input
-									aria-label="Buscar por nome ou e-mail"
-									placeholder="Buscar por nome ou e-mail"
-									value={search}
-									onChange={(event) => setSearch(event.target.value)}
-								/>
-							</div>
-							<p className="text-base-content/60 shrink-0 text-sm">
-								{filteredUsers.length} de {users.length} usuário(s)
-							</p>
-						</div>
+					}
+				/>
+			) : filteredUsers.length === 0 ? (
+				<EmptyState
+					icon={<RiSearchLine className="size-5" />}
+					title="Nenhum usuário encontrado"
+					description={<>Nenhum usuário corresponde a “{search.trim()}”.</>}
+					action={
+						<Button size="sm" variant="ghost" onClick={() => setSearch("")}>
+							Limpar busca
+						</Button>
+					}
+				/>
+			) : (
+				<div className="tl-panel overflow-hidden">
+					{/* Desktop/tablet: tabela */}
+					<table className="tl-table hidden table-fixed sm:table">
+						<colgroup>
+							<col />
+							<col className="w-40" />
+							<col className="w-24" />
+						</colgroup>
+						<thead>
+							<tr>
+								<th scope="col">Usuário</th>
+								<th scope="col">Papel</th>
+								<th scope="col" className="text-right">
+									<span className="sr-only">Ações</span>
+								</th>
+							</tr>
+						</thead>
+						<tbody>
+							{pagination.pageItems.map((user) => (
+								<tr key={user.id}>
+									<td className="py-2">{renderIdentity(user)}</td>
+									<td>{renderRole(user)}</td>
+									<td className="py-0">{renderActions(user)}</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
 
-						{filteredUsers.length === 0 ? (
-							<p className="text-base-content/60 py-10 text-center text-sm">
-								Nenhum usuário encontrado para essa busca.
-							</p>
-						) : (
-							<>
-								{/* Desktop/tablet: tabela */}
-								<div className="hidden overflow-x-auto sm:block">
-									<table className="table">
-										<thead>
-											<tr>
-												<th>Nome</th>
-												<th>E-mail</th>
-												<th>Papel</th>
-												<th className="text-right">Ações</th>
-											</tr>
-										</thead>
-										<tbody>
-											{filteredUsers.map((user) => (
-												<tr key={user.id}>
-													<td className="font-medium">{user.name}</td>
-													<td className="text-base-content/70">{user.email}</td>
-													<td>
-														<Badge variant={user.role === "Admin" ? "primary" : "ghost"}>
-															{roleLabel[user.role]}
-														</Badge>
-													</td>
-													<td>
-														<div className="flex justify-end gap-1">
-															<button
-																type="button"
-																aria-label={`Editar ${user.name}`}
-																onClick={() => openEdit(user)}
-																className="btn btn-ghost btn-sm btn-square">
-																<RiEditLine className="size-4" />
-															</button>
-															<button
-																type="button"
-																aria-label={`Remover ${user.name}`}
-																onClick={() => setDeleteTarget(user)}
-																className="btn btn-ghost btn-sm btn-square text-error">
-																<RiDeleteBinLine className="size-4" />
-															</button>
-														</div>
-													</td>
-												</tr>
-											))}
-										</tbody>
-									</table>
+					{/* Mobile: lista, sem overflow horizontal */}
+					<ul className="divide-base-300 divide-y sm:hidden">
+						{pagination.pageItems.map((user) => (
+							<li key={user.id} className="flex items-center gap-3 px-4 py-3">
+								<div className="min-w-0 flex-1">
+									{renderIdentity(user)}
+									<div className="mt-2 pl-12">{renderRole(user)}</div>
 								</div>
+								{renderActions(user)}
+							</li>
+						))}
+					</ul>
 
-								{/* Mobile: lista de cards, sem overflow horizontal */}
-								<ul className="list sm:hidden">
-									{filteredUsers.map((user) => (
-										<li key={user.id} className="list-row items-center">
-											<div className="list-col-grow min-w-0">
-												<p className="truncate font-medium">{user.name}</p>
-												<p className="text-base-content/60 truncate text-sm">
-													{user.email}
-												</p>
-												<div className="mt-1.5 flex items-center gap-2 text-sm">
-													<Badge size="sm" variant={user.role === "Admin" ? "primary" : "ghost"}>
-														{roleLabel[user.role]}
-													</Badge>
-												</div>
-											</div>
-											<div className="flex gap-1">
-												<button
-													type="button"
-													aria-label={`Editar ${user.name}`}
-													onClick={() => openEdit(user)}
-													className="btn btn-ghost btn-sm btn-square">
-													<RiEditLine className="size-4" />
-												</button>
-												<button
-													type="button"
-													aria-label={`Remover ${user.name}`}
-													onClick={() => setDeleteTarget(user)}
-													className="btn btn-ghost btn-sm btn-square text-error">
-													<RiDeleteBinLine className="size-4" />
-												</button>
-											</div>
-										</li>
-									))}
-								</ul>
-							</>
-						)}
-					</>
-				)}
-			</Card>
+					<Pagination
+						page={pagination.page}
+						pageCount={pagination.pageCount}
+						pageSize={pagination.pageSize}
+						total={pagination.total}
+						onPageChange={pagination.setPage}
+						noun="usuários"
+					/>
+				</div>
+			)}
 
 			<Dialog
 				open={formOpen}

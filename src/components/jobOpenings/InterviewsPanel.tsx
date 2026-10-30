@@ -8,7 +8,7 @@ import {
 	RiFileList3Line,
 	RiTeamLine,
 } from "@remixicon/react";
-import {Alert, Badge, Button, Dialog, RichText, Spinner} from "../ui";
+import {Alert, Avatar, Badge, Button, Dialog, RichText, Spinner} from "../ui";
 import {toast} from "../ui/toastStore";
 import InterviewEditor, {type InterviewCandidate} from "./InterviewEditor";
 import {isApiError} from "../../api/errors";
@@ -300,11 +300,7 @@ function InterviewCard({
 				isOwn ? "border-primary/25" : "border-base-300",
 			].join(" ")}>
 			<header className="flex items-start gap-3">
-				<span
-					aria-hidden="true"
-					className="bg-base-200 text-base-content/70 grid size-9 shrink-0 place-items-center rounded-full text-sm font-semibold">
-					{candidateName.trim().charAt(0).toUpperCase() || "?"}
-				</span>
+				<Avatar name={candidateName} />
 				<div className="min-w-0 flex-1">
 					<p className="truncate text-sm font-semibold">{candidateName}</p>
 					<p className="text-base-content/55 flex flex-wrap items-center gap-x-1.5 text-xs">

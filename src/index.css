@@ -245,6 +245,89 @@
 	.tl-link {
 		@apply text-primary inline-flex items-center gap-1 font-medium hover:underline hover:underline-offset-2;
 	}
+
+	/* Card de entidade clicável (vaga, candidato): o link do título cobre o card
+	   (`after:absolute`) e as ações ficam acima dele com `relative z-10`. */
+	.tl-entity-card {
+		@apply rounded-box border-base-300 bg-base-100 relative flex flex-col border p-4 transition-colors sm:p-5;
+	}
+
+	.tl-entity-card:hover,
+	.tl-entity-card:focus-within {
+		border-color: color-mix(in oklab, var(--color-primary) 35%, var(--color-base-300));
+	}
+}
+
+@layer components {
+	/* Tabela de dados: um padrão para todas as listagens tabulares. */
+	.tl-table {
+		@apply w-full border-separate border-spacing-0 text-sm;
+	}
+
+	.tl-table thead th {
+		@apply bg-base-200/70 border-base-300 text-base-content/60 h-10 border-b px-4 text-left text-xs font-medium whitespace-nowrap;
+	}
+
+	.tl-table tbody td {
+		@apply border-base-300 h-12 border-b px-4 align-middle;
+	}
+
+	.tl-table tbody tr:last-child td {
+		@apply border-b-0;
+	}
+
+	.tl-table tbody tr {
+		@apply transition-colors;
+	}
+
+	.tl-table tbody tr:hover {
+		background-color: color-mix(in oklab, var(--color-base-200) 55%, transparent);
+	}
+
+	/* Ações de linha: discretas em repouso, plenas no hover/foco da linha. Em telas
+	   sem hover (toque) ficam sempre visíveis. */
+	@media (hover: hover) {
+		.tl-row-actions {
+			@apply opacity-60 transition-opacity;
+		}
+
+		tr:hover .tl-row-actions,
+		.tl-entity-card:hover .tl-row-actions,
+		.tl-row-actions:focus-within {
+			@apply opacity-100;
+		}
+	}
+
+	.tl-icon-action {
+		@apply text-base-content/55 hover:bg-base-200 hover:text-base-content grid size-8 place-items-center rounded-md transition-colors;
+	}
+
+	.tl-icon-action-danger {
+		@apply hover:text-error;
+		&:hover {
+			background-color: color-mix(in oklab, var(--color-error) 10%, transparent);
+		}
+	}
+
+	.tl-search {
+		@apply border-base-300 bg-base-100 focus-within:border-primary/60 flex h-9 items-center gap-2 rounded-lg border px-3 transition-colors;
+	}
+
+	.tl-search:focus-within {
+		box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 14%, transparent);
+	}
+
+	.tl-segmented {
+		@apply bg-base-200 inline-flex h-9 items-center rounded-lg p-0.5;
+	}
+
+	.tl-segmented-item {
+		@apply text-base-content/60 hover:text-base-content h-full rounded-md px-3 text-sm font-medium transition-colors;
+	}
+
+	.tl-segmented-item[aria-pressed="true"] {
+		@apply bg-base-100 text-base-content shadow-xs;
+	}
 }
 
 @layer components {

@@ -19,7 +19,7 @@ import SkillCoverageChart from "../components/dashboard/SkillCoverageChart";
 import Sparkline from "../components/dashboard/Sparkline";
 import StatTile, {type Tone} from "../components/dashboard/StatTile";
 import {formatNumber, formatPercent} from "../components/dashboard/chartTheme";
-import {Alert, Button} from "../components/ui";
+import {ErrorState} from "../components/ui";
 import {useDashboardData} from "../hooks/useDashboardData";
 import {
 	WINDOW_DAYS,
@@ -98,7 +98,7 @@ export default function Dashboard(): JSX.Element {
 				title="Dashboard"
 				description="Panorama do recrutamento: banco de talentos, vagas em andamento e ritmo das entrevistas."
 				actions={
-					<Link to="/candidatos/importar" className="btn btn-primary btn-sm h-9 gap-2 px-4">
+					<Link to="/candidatos/importar" className="btn btn-primary btn-sm font-semibold">
 						<RiUploadCloud2Line className="size-4" />
 						Importar currículos
 					</Link>
@@ -106,14 +106,7 @@ export default function Dashboard(): JSX.Element {
 			/>
 
 			{error ? (
-				<Alert variant="error" title="Não foi possível carregar o dashboard">
-					<div className="flex flex-wrap items-center justify-between gap-3">
-						<span>{error}</span>
-						<Button size="xs" variant="ghost" onClick={reload}>
-							Tentar novamente
-						</Button>
-					</div>
-				</Alert>
+				<ErrorState title="Não foi possível carregar o dashboard" message={error} onRetry={reload} />
 			) : loading ? (
 				<DashboardSkeleton />
 			) : (

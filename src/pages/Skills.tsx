@@ -1,9 +1,23 @@
 import {useMemo, useState, type SubmitEvent, type JSX} from "react";
-import {RiAddLine, RiDeleteBinLine, RiEditLine} from "@remixicon/react";
+import {RiAddLine, RiDeleteBinLine, RiEditLine, RiMedalLine, RiSearchLine} from "@remixicon/react";
 import PageHeader from "../components/layout/PageHeader";
-import {Alert, Button, Card, Dialog, Input, Spinner, Textarea} from "../components/ui";
+import {
+	Alert,
+	Button,
+	Dialog,
+	EmptyState,
+	ErrorState,
+	IconAction,
+	Input,
+	ListToolbar,
+	Pagination,
+	SearchInput,
+	TableSkeleton,
+	Textarea,
+} from "../components/ui";
 import {toast} from "../components/ui/toastStore";
 import {isApiError} from "../api/errors";
+import {usePagination} from "../hooks/usePagination";
 import {useSession} from "../hooks/useSession";
 import {useSkills} from "../hooks/useSkills";
 import type {Skill} from "../types/skill";
@@ -48,6 +62,7 @@ export default function Skills(): JSX.Element {
 				skill.description?.toLowerCase().includes(term),
 		);
 	}, [skills, search]);
+	const pagination = usePagination(filteredSkills);
 
 	function openCreate() {
 		setEditingId(null);
@@ -119,21 +134,20 @@ export default function Skills(): JSX.Element {
 	function renderActions(skill: Skill) {
 		if (!canManage) return null;
 		return (
-			<div className="flex justify-end gap-1">
-				<button
-					type="button"
-					aria-label={`Editar ${skill.name}`}
+			<div className="tl-row-actions flex justify-end gap-0.5">
+				<IconAction
+					label={`Editar ${skill.name}`}
+					icon={<RiEditLine className="size-4" />}
+					tooltipPosition="left"
 					onClick={() => openEdit(skill)}
-					className="btn btn-ghost btn-sm btn-square">
-					<RiEditLine className="size-4" />
-				</button>
-				<button
-					type="button"
-					aria-label={`Remover ${skill.name}`}
+				/>
+				<IconAction
+					label={`Remover ${skill.name}`}
+					icon={<RiDeleteBinLine className="size-4" />}
+					tooltipPosition="left"
+					danger
 					onClick={() => setDeleteTarget(skill)}
-					className="btn btn-ghost btn-sm btn-square text-error">
-					<RiDeleteBinLine className="size-4" />
-				</button>
+				/>
 			</div>
 		);
 	}
@@ -154,100 +168,114 @@ export default function Skills(): JSX.Element {
 				}
 			/>
 
-			<Card padding="sm">
-				{error ? (
-					<Alert variant="error" title="Não foi possível carregar as competências">
-						<div className="flex flex-wrap items-center justify-between gap-3">
-							<span>{error}</span>
-							<Button size="xs" variant="ghost" onClick={reload}>
-								Tentar novamente
-							</Button>
-						</div>
-					</Alert>
-				) : loading ? (
-					<div className="flex flex-col items-center justify-center gap-3 py-16">
-						<Spinner />
-						<p className="text-base-content/60 text-sm">Carregando competências...</p>
-					</div>
-				) : skills.length === 0 ? (
-					<div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-						<p className="text-base-content/60 text-sm">Nenhuma competência cadastrada.</p>
+			<ListToolbar
+				count={
+					!loading && !error
+						? search.trim()
+							? `${filteredSkills.length} de ${skills.length} competências`
+							: `${skills.length} ${skills.length === 1 ? "competência" : "competências"}`
+						: undefined
+				}>
+				<SearchInput
+					label="Buscar por nome ou descrição"
+					value={search}
+					onChange={setSearch}
+					className="sm:w-80"
+				/>
+			</ListToolbar>
+
+			{error ? (
+				<ErrorState title="Não foi possível carregar as competências" message={error} onRetry={reload} />
+			) : loading ? (
+				<TableSkeleton label="Carregando competências" columns={canManage ? 4 : 3} />
+			) : skills.length === 0 ? (
+				<EmptyState
+					icon={<RiMedalLine className="size-5" />}
+					title="Nenhuma competência cadastrada"
+					description="Competências descrevem o que as vagas exigem e o que os candidatos sabem fazer."
+					action={
 						<Button size="sm" onClick={openCreate}>
 							<RiAddLine className="size-4" />
-							Adicionar competência
+							Criar competência
 						</Button>
-					</div>
-				) : (
-					<>
-						<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-							<div className="sm:max-w-xs sm:flex-1">
-								<Input
-									aria-label="Buscar por nome ou descrição"
-									placeholder="Buscar por nome ou descrição"
-									value={search}
-									onChange={(event) => setSearch(event.target.value)}
-								/>
-							</div>
-							<p className="text-base-content/60 shrink-0 text-sm">
-								{filteredSkills.length} de {skills.length} competência(s)
-							</p>
-						</div>
+					}
+				/>
+			) : filteredSkills.length === 0 ? (
+				<EmptyState
+					icon={<RiSearchLine className="size-5" />}
+					title="Nenhuma competência encontrada"
+					description={<>Nenhuma competência corresponde a “{search.trim()}”.</>}
+					action={
+						<Button size="sm" variant="ghost" onClick={() => setSearch("")}>
+							Limpar busca
+						</Button>
+					}
+				/>
+			) : (
+				<div className="tl-panel overflow-hidden">
+					{/* Desktop/tablet: tabela */}
+					<table className="tl-table hidden table-fixed sm:table">
+						<colgroup>
+							<col className="w-[28%]" />
+							<col />
+							<col className="w-36" />
+							{canManage && <col className="w-24" />}
+						</colgroup>
+						<thead>
+							<tr>
+								<th scope="col">Nome</th>
+								<th scope="col">Descrição</th>
+								<th scope="col">Criada em</th>
+								{canManage && (
+									<th scope="col" className="text-right">
+										<span className="sr-only">Ações</span>
+									</th>
+								)}
+							</tr>
+						</thead>
+						<tbody>
+							{pagination.pageItems.map((skill) => (
+								<tr key={skill.id}>
+									<td className="truncate font-medium" title={skill.name}>
+										{skill.name}
+									</td>
+									<td className="text-base-content/65 truncate" title={skill.description || undefined}>
+										{skill.description || <span className="text-base-content/35">—</span>}
+									</td>
+									<td className="text-base-content/60 whitespace-nowrap tabular-nums">
+										{formatDate(skill.createdAt)}
+									</td>
+									{canManage && <td className="py-0">{renderActions(skill)}</td>}
+								</tr>
+							))}
+						</tbody>
+					</table>
 
-						{filteredSkills.length === 0 ? (
-							<p className="text-base-content/60 py-10 text-center text-sm">
-								Nenhuma competência encontrada para essa busca.
-							</p>
-						) : (
-							<>
-								{/* Desktop/tablet: tabela */}
-								<div className="hidden overflow-x-auto sm:block">
-									<table className="table">
-										<thead>
-											<tr>
-												<th>Nome</th>
-												<th>Descrição</th>
-												<th>Criada em</th>
-												{canManage && <th className="text-right">Ações</th>}
-											</tr>
-										</thead>
-										<tbody>
-											{filteredSkills.map((skill) => (
-												<tr key={skill.id}>
-													<td className="font-medium whitespace-nowrap">{skill.name}</td>
-													<td className="text-base-content/70 max-w-md">
-														<span className="line-clamp-2">{skill.description || "—"}</span>
-													</td>
-													<td className="text-base-content/60 whitespace-nowrap">
-														{formatDate(skill.createdAt)}
-													</td>
-													{canManage && <td>{renderActions(skill)}</td>}
-												</tr>
-											))}
-										</tbody>
-									</table>
+					{/* Mobile: lista, sem overflow horizontal */}
+					<ul className="divide-base-300 divide-y sm:hidden">
+						{pagination.pageItems.map((skill) => (
+							<li key={skill.id} className="flex items-center gap-3 px-4 py-3">
+								<div className="min-w-0 flex-1">
+									<p className="truncate text-sm font-medium">{skill.name}</p>
+									<p className="text-base-content/60 line-clamp-2 text-xs leading-5">
+										{skill.description || `Criada em ${formatDate(skill.createdAt)}`}
+									</p>
 								</div>
+								{renderActions(skill)}
+							</li>
+						))}
+					</ul>
 
-								{/* Mobile: lista de cards, sem overflow horizontal */}
-								<ul className="list sm:hidden">
-									{filteredSkills.map((skill) => (
-										<li key={skill.id} className="list-row items-center">
-											<div className="list-col-grow min-w-0">
-												<p className="truncate font-medium">{skill.name}</p>
-												{skill.description && (
-													<p className="text-base-content/60 line-clamp-2 text-sm">
-														{skill.description}
-													</p>
-												)}
-											</div>
-											{renderActions(skill)}
-										</li>
-									))}
-								</ul>
-							</>
-						)}
-					</>
-				)}
-			</Card>
+					<Pagination
+						page={pagination.page}
+						pageCount={pagination.pageCount}
+						pageSize={pagination.pageSize}
+						total={pagination.total}
+						onPageChange={pagination.setPage}
+						noun="competências"
+					/>
+				</div>
+			)}
 
 			<Dialog
 				open={formOpen}

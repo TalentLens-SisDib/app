@@ -3,6 +3,7 @@ import {Link} from "react-router-dom";
 import {RiArrowRightLine, RiArrowRightSLine, RiChat3Line, RiTeamLine} from "@remixicon/react";
 import type {Profile} from "../../types/profile";
 import {formatDate} from "../../utils/format";
+import {Avatar} from "../ui";
 import ChartEmpty from "./ChartEmpty";
 import {formatNumber} from "./chartTheme";
 
@@ -63,11 +64,7 @@ export default function RecentCandidates({profiles, total, jobIds, className}: R
 									<Link
 										to={`/candidatos/${profile.id}`}
 										className="group hover:bg-base-200/70 flex items-center gap-3 rounded-lg px-2 py-2 transition-colors">
-										<span
-											aria-hidden="true"
-											className="bg-primary/10 text-primary grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold">
-											{profile.name.trim().charAt(0).toUpperCase() || "?"}
-										</span>
+										<Avatar name={profile.name} />
 										<div className="min-w-0 flex-1">
 											<p className="group-hover:text-primary truncate text-sm font-medium transition-colors">
 												{profile.name}
