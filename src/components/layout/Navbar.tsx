@@ -1,13 +1,35 @@
 import type {JSX} from "react";
-import {RiLogoutBoxRLine, RiUserLine} from "@remixicon/react";
+import {
+	RiArrowDownSLine,
+	RiLayoutLeftLine,
+	RiLogoutBoxRLine,
+	RiNotification3Line,
+	RiUserLine,
+} from "@remixicon/react";
 import {Link, useNavigate} from "react-router-dom";
 import {logout} from "../../api/services/auth";
 import {useSession} from "../../hooks/useSession";
+import type {UserRole} from "../../types/user";
 import Brand from "./Brand";
+
+const ROLE_LABEL: Record<UserRole, string> = {
+	Admin: "Administrador",
+	Recruiter: "Recrutador",
+};
+
+/** Até duas iniciais: primeiro e último nome. */
+function initials(name: string | undefined): string {
+	const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+	if (parts.length === 0) return "TL";
+	const first = parts[0].charAt(0);
+	const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : "";
+	return (first + last).toUpperCase();
+}
 
 export default function Navbar(): JSX.Element {
 	const navigate = useNavigate();
 	const session = useSession();
+	const user = session?.user;
 
 	function handleLogout() {
 		logout();
@@ -16,43 +38,58 @@ export default function Navbar(): JSX.Element {
 
 	return (
 		<header className="bg-base-100/90 border-base-300 sticky top-0 z-30 border-b backdrop-blur-xl">
-			<nav className="navbar mx-auto min-h-16 max-w-7xl px-2 sm:px-4">
-				<div className="navbar-start gap-1">
-					<label htmlFor="my-drawer-4" aria-label="open sidebar" className="btn btn-square btn-ghost">
-						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" strokeLinejoin="round" strokeLinecap="round" strokeWidth="2" fill="none" stroke="currentColor" className="inline-block size-5">
-							<path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" />
-							<path d="M9 4v16" />
-							<path d="M14 10l2 2l-2 2" />
-						</svg>
+			<nav className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-3 sm:px-6 lg:px-8">
+				<div className="flex items-center gap-2">
+					<label
+						htmlFor="my-drawer-4"
+						aria-label="Abrir ou recolher o menu"
+						className="btn btn-ghost btn-square btn-sm text-base-content/70 hover:text-base-content">
+						<RiLayoutLeftLine className="size-[18px]" />
 					</label>
-					<Link to="/" className="ml-1"><Brand /></Link>
+					<Link to="/" className="rounded-lg">
+						<Brand />
+					</Link>
 				</div>
 
-				<div className="navbar-end gap-2">
-					<button type="button" aria-label="notifications" className="btn btn-ghost btn-circle btn-sm">
-						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" strokeLinejoin="round" strokeLinecap="round" strokeWidth="2" fill="none" stroke="currentColor" className="inline-block size-5">
-							<path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6" />
-							<path d="M9 17v1a3 3 0 0 0 6 0v-1" />
-						</svg>
+				<div className="flex items-center gap-1.5">
+					<button
+						type="button"
+						aria-label="Notificações"
+						className="btn btn-ghost btn-square btn-sm text-base-content/70 hover:text-base-content">
+						<RiNotification3Line className="size-[18px]" />
 					</button>
+
+					<span aria-hidden="true" className="bg-base-300 mx-1.5 h-6 w-px" />
 
 					<div className="dropdown dropdown-end">
 						<button
 							type="button"
 							tabIndex={0}
-							className="btn btn-ghost btn-circle avatar placeholder">
-							<div className="bg-primary text-primary-content w-8 rounded-full"><span className="text-xs font-semibold">TL</span></div>
+							aria-label="Menu da conta"
+							className="hover:bg-base-200 flex items-center gap-2.5 rounded-lg py-1 pr-1.5 pl-1 transition-colors">
+							<span className="bg-primary/10 text-primary ring-primary/15 grid size-8 place-items-center rounded-full text-xs font-semibold ring-1">
+								{initials(user?.name)}
+							</span>
+							{user && (
+								<span className="hidden min-w-0 text-left md:block">
+									<span className="block max-w-36 truncate text-sm leading-5 font-medium">{user.name}</span>
+									<span className="text-base-content/55 block text-xs leading-4">
+										{ROLE_LABEL[user.role] ?? user.role}
+									</span>
+								</span>
+							)}
+							<RiArrowDownSLine className="text-base-content/50 hidden size-4 md:block" />
 						</button>
 						<ul
 							tabIndex={0}
-							className="menu dropdown-content bg-base-100 border-base-300 rounded-box z-20 mt-3 w-56 border p-2 shadow-sm">
-							{session && (
-								<li className="menu-title px-3 py-1.5">
+							className="menu dropdown-content bg-base-100 border-base-300 rounded-box z-20 mt-2 w-60 border p-1.5 shadow-lg shadow-black/5">
+							{user && (
+								<li className="menu-title border-base-300 mb-1 border-b px-3 pt-2 pb-2.5">
 									<span className="text-base-content block truncate text-sm font-medium normal-case">
-										{session.user.name}
+										{user.name}
 									</span>
 									<span className="text-base-content/60 block truncate text-xs font-normal normal-case">
-										{session.user.email}
+										{user.email}
 									</span>
 								</li>
 							)}

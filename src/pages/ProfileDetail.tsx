@@ -78,9 +78,9 @@ export default function ProfileDetail(): JSX.Element {
 					<div className="space-y-3 text-center">
 						<p className="font-semibold">Perfil não encontrado</p>
 						<p className="text-base-content/60 text-sm">O candidato pode ter sido removido ou o link está incorreto.</p>
-						<Link to="/vagas" className="btn btn-ghost btn-sm">
+						<Link to="/candidatos" className="btn btn-ghost btn-sm">
 							<RiArrowLeftLine className="size-4" />
-							Voltar para vagas
+							Voltar para candidatos
 						</Link>
 					</div>
 				) : (
@@ -103,12 +103,12 @@ export default function ProfileDetail(): JSX.Element {
 				title={profile.name}
 				breadcrumbs={[
 					{label: "Dashboard", href: "/"},
-					{label: "Vagas", href: "/vagas"},
+					{label: "Candidatos", href: "/candidatos"},
 					{label: "Perfil do candidato", href: `/candidatos/${profile.id}`},
 				]}
 				actions={
 					<>
-						<Link to="/vagas" className="btn btn-ghost btn-sm">
+						<Link to="/candidatos" className="btn btn-ghost btn-sm">
 							<RiArrowLeftLine className="size-4" />
 							Voltar
 						</Link>

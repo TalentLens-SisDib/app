@@ -1,12 +1,6 @@
 import {apiClient} from "../client";
 import type {CreateApplicationInput, JobApplication} from "../../types/application";
-
-/** Candidatura como vem embutida em `GET /profiles/{id}` (sem o nome do perfil). */
-type ProfileApplication = {
-	profileId: string;
-	jobOpeningId: string;
-	appliedAt: string;
-};
+import type {ProfileApplication} from "../../types/profile";
 
 export function getApplications(jobOpeningId: string): Promise<JobApplication[]> {
 	return apiClient.get<JobApplication[]>(`/job-openings/${jobOpeningId}/applications`);

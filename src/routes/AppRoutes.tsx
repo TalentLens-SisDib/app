@@ -1,8 +1,8 @@
-import type {JSX} from "react";
+import {lazy, Suspense, type JSX} from "react";
 import {Route, Routes} from "react-router-dom";
 import AppLayout from "../components/layout/AppLayout";
 import AuthLayout from "../components/layout/AuthLayout";
-import Dashboard from "../pages/Dashboard";
+import Candidates from "../pages/Candidates";
 import ImportResumes from "../pages/ImportResumes";
 import JobOpeningDetail from "../pages/JobOpeningDetail";
 import JobOpenings from "../pages/JobOpenings";
@@ -12,6 +12,10 @@ import ProfileDetail from "../pages/ProfileDetail";
 import Skills from "../pages/Skills";
 import UiPlayground from "../pages/UiPlayground";
 import Users from "../pages/Users";
+import {Spinner} from "../components/ui";
+
+// O Recharts é pesado: só é baixado quando o dashboard abre.
+const Dashboard = lazy(() => import("../pages/Dashboard"));
 
 export default function AppRoutes(): JSX.Element {
 	return (
@@ -21,7 +25,20 @@ export default function AppRoutes(): JSX.Element {
 			</Route>
 
 			<Route element={<AppLayout />}>
-				<Route path="/" element={<Dashboard />} />
+				<Route
+					path="/"
+					element={
+						<Suspense
+							fallback={
+								<div className="flex justify-center py-24">
+									<Spinner />
+								</div>
+							}>
+							<Dashboard />
+						</Suspense>
+					}
+				/>
+				<Route path="/candidatos" element={<Candidates />} />
 				<Route path="/candidatos/importar" element={<ImportResumes />} />
 				<Route path="/candidatos/:id" element={<ProfileDetail />} />
 				<Route path="/ui-playground" element={<UiPlayground />} />
