@@ -2,6 +2,7 @@ import type {JSX} from "react";
 import {Route, Routes} from "react-router-dom";
 import AppLayout from "../components/layout/AppLayout";
 import AuthLayout from "../components/layout/AuthLayout";
+import Candidates from "../pages/Candidates";
 import Dashboard from "../pages/Dashboard";
 import ImportResumes from "../pages/ImportResumes";
 import JobOpeningDetail from "../pages/JobOpeningDetail";
@@ -22,6 +23,7 @@ export default function AppRoutes(): JSX.Element {
 
 			<Route element={<AppLayout />}>
 				<Route path="/" element={<Dashboard />} />
+				<Route path="/candidatos" element={<Candidates />} />
 				<Route path="/candidatos/importar" element={<ImportResumes />} />
 				<Route path="/candidatos/:id" element={<ProfileDetail />} />
 				<Route path="/ui-playground" element={<UiPlayground />} />

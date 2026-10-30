@@ -1,8 +1,11 @@
-import {RiBriefcase4Line, RiHomeLine, RiMedalLine, RiUploadCloud2Line, RiUserLine} from "@remixicon/react";
+import {RiBriefcase4Line, RiHomeLine, RiMedalLine, RiTeamLine, RiUploadCloud2Line, RiUserLine} from "@remixicon/react";
 import type {JSX} from "react";
-import {NavLink} from "react-router-dom";
+import {NavLink, useMatch} from "react-router-dom";
 
 export default function Sidebar(): JSX.Element {
+	// "/candidatos" casa por prefixo com a importação, que tem item próprio no menu.
+	const onImport = useMatch("/candidatos/importar") !== null;
+
 	return (
 		<div className="drawer-side is-drawer-close:overflow-visible z-40">
 			<label
@@ -53,6 +56,23 @@ export default function Sidebar(): JSX.Element {
 							data-tip="Vagas">
 							<RiBriefcase4Line />
 							<span className="is-drawer-close:hidden">Vagas</span>
+						</NavLink>
+					</li>
+
+					<li>
+						<NavLink
+							to="/candidatos"
+							className={({isActive}) =>
+								[
+									"is-drawer-close:tooltip is-drawer-close:tooltip-right is-drawer-close:flex is-drawer-close:items-center is-drawer-close:justify-center p-2",
+									isActive && !onImport && "menu-active",
+								]
+									.filter(Boolean)
+									.join(" ")
+							}
+							data-tip="Candidatos">
+							<RiTeamLine />
+							<span className="is-drawer-close:hidden">Candidatos</span>
 						</NavLink>
 					</li>
 

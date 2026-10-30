@@ -166,6 +166,7 @@ export default function ImportResumes(): JSX.Element {
 				title="Importar currículos"
 				breadcrumbs={[
 					{label: "Dashboard", href: "/"},
+					{label: "Candidatos", href: "/candidatos"},
 					{label: "Importar currículos", href: "/candidatos/importar"},
 				]}
 			/>
