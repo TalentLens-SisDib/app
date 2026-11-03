@@ -23,6 +23,11 @@ export function uploadCv(file: File, signal?: AbortSignal): Promise<Profile> {
 	return apiClient.post<Profile>("/profiles/upload-cv", form, {signal});
 }
 
+/** Cria um perfil a partir de um link público de perfil do LinkedIn. */
+export function importLinkedInProfile(url: string): Promise<Profile> {
+	return apiClient.post<Profile>("/profiles/upload-linkedin", {url});
+}
+
 export function deleteProfile(id: string): Promise<void> {
 	return apiClient.delete<void>(`/profiles/${id}`);
 }
