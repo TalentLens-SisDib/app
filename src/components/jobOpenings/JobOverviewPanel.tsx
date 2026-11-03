@@ -1,7 +1,7 @@
 import type {JSX} from "react";
 import {RiCalendarLine, RiMoneyDollarCircleLine, RiUserLine} from "@remixicon/react";
 import {Badge, RichText} from "../ui";
-import type {JobOpening, JobOpeningSkill} from "../../types/jobOpening";
+import type {JobOpening, JobOpeningCulturalFit, JobOpeningSkill} from "../../types/jobOpening";
 import {formatCurrency, formatDate} from "../../utils/format";
 
 export type JobOverviewPanelProps = {
@@ -14,6 +14,9 @@ export default function JobOverviewPanel({jobOpening, ownerName}: JobOverviewPan
 	const skills = jobOpening.skills ?? [];
 	const requiredSkills = skills.filter((skill) => skill.isRequired);
 	const desiredSkills = skills.filter((skill) => !skill.isRequired);
+	const culturalFits = jobOpening.culturalFits ?? [];
+	const requiredCulturalFits = culturalFits.filter((fit) => fit.isRequired);
+	const desiredCulturalFits = culturalFits.filter((fit) => !fit.isRequired);
 
 	return (
 		<section aria-labelledby="job-overview-title" className="space-y-5">
@@ -43,6 +46,27 @@ export default function JobOverviewPanel({jobOpening, ownerName}: JobOverviewPan
 				</div>
 			)}
 
+			<section aria-labelledby="job-behavioral-criteria-title" className="space-y-2">
+				<div>
+					<h3 id="job-behavioral-criteria-title" className="text-sm font-semibold">
+						Critérios comportamentais
+					</h3>
+					<p className="text-base-content/55 mt-0.5 text-xs">
+						Características consideradas na aderência dos candidatos à vaga.
+					</p>
+				</div>
+				{culturalFits.length > 0 ? (
+					<div className="space-y-2">
+						<CulturalFitGroup label="Obrigatórias" fits={requiredCulturalFits} variant="secondary" />
+						<CulturalFitGroup label="Desejáveis" fits={desiredCulturalFits} variant="ghost" />
+					</div>
+				) : (
+					<p className="text-base-content/55 text-sm">
+						Nenhum critério comportamental definido para esta vaga.
+					</p>
+				)}
+			</section>
+
 			<div className="border-base-300 border-t pt-5">
 				<RichText value={jobOpening.description} className="text-sm" />
 			</div>
@@ -66,6 +90,28 @@ function SkillGroup({
 			{skills.map((skill) => (
 				<Badge key={skill.skillId} size="sm" variant={variant}>
 					{skill.skillName}
+				</Badge>
+			))}
+		</div>
+	);
+}
+
+function CulturalFitGroup({
+	label,
+	fits,
+	variant,
+}: {
+	label: string;
+	fits: JobOpeningCulturalFit[];
+	variant: "secondary" | "ghost";
+}): JSX.Element | null {
+	if (fits.length === 0) return null;
+	return (
+		<div className="flex flex-wrap items-center gap-1.5">
+			<span className="text-base-content/55 mr-1 text-xs font-medium">{label}:</span>
+			{fits.map((fit) => (
+				<Badge key={fit.culturalFitId} size="sm" variant={variant}>
+					{fit.culturalFitName}
 				</Badge>
 			))}
 		</div>

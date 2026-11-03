@@ -10,6 +10,7 @@ import type {JobApplication} from "../../types/application";
 import type {JobOpening} from "../../types/jobOpening";
 import type {Profile} from "../../types/profile";
 import {formatDate} from "../../utils/format";
+import {matchBehavioralCriteria, type BehavioralMatch} from "../../utils/behavioralMatch";
 import {compareMatch, matchSkills, type SkillMatch} from "../../utils/skillMatch";
 
 const GENERIC_UNLINK_ERROR = "Não foi possível desvincular o candidato. Tente novamente.";
@@ -25,7 +26,12 @@ export type CandidatesPanelProps = {
 	unlink: (profileId: string) => Promise<void>;
 };
 
-type Row = {application: JobApplication; profile: Profile | undefined; match: SkillMatch};
+type Row = {
+	application: JobApplication;
+	profile: Profile | undefined;
+	match: SkillMatch;
+	behavioralMatch: BehavioralMatch;
+};
 
 /**
  * Candidatos da vaga. As candidaturas vêm da página (que também mostra a
@@ -58,6 +64,7 @@ export default function CandidatesPanel({
 		[applications],
 	);
 	const hasJobSkills = (jobOpening.skills ?? []).length > 0;
+	const hasBehavioralCriteria = (jobOpening.culturalFits ?? []).length > 0;
 
 	// Mais aderentes primeiro; empate pela candidatura mais recente.
 	const rows = useMemo<Row[]>(
@@ -65,7 +72,12 @@ export default function CandidatesPanel({
 			applications
 				.map((application) => {
 					const profile = profilesById.get(application.profileId);
-					return {application, profile, match: matchSkills(jobOpening, profile)};
+					return {
+						application,
+						profile,
+						match: matchSkills(jobOpening, profile),
+						behavioralMatch: matchBehavioralCriteria(jobOpening, profile),
+					};
 				})
 				.sort(
 					(a, b) =>
@@ -169,6 +181,7 @@ export default function CandidatesPanel({
 							key={row.application.profileId}
 							row={row}
 							showMatch={hasJobSkills}
+							showBehavioralMatch={hasBehavioralCriteria}
 							canManage={canManage}
 							onUnlink={() => setUnlinkTarget(row)}
 						/>
@@ -213,12 +226,13 @@ export default function CandidatesPanel({
 type CandidateRowProps = {
 	row: Row;
 	showMatch: boolean;
+	showBehavioralMatch: boolean;
 	canManage: boolean;
 	onUnlink: () => void;
 };
 
-function CandidateRow({row, showMatch, canManage, onUnlink}: CandidateRowProps): JSX.Element {
-	const {application, profile, match} = row;
+function CandidateRow({row, showMatch, showBehavioralMatch, canManage, onUnlink}: CandidateRowProps): JSX.Element {
+	const {application, profile, match, behavioralMatch} = row;
 	const name = profile?.name ?? application.profileName;
 	const allRequired = match.requiredTotal > 0 && match.requiredMatched === match.requiredTotal;
 
@@ -254,6 +268,54 @@ function CandidateRow({row, showMatch, canManage, onUnlink}: CandidateRowProps):
 					<p className="text-base-content/60 mt-1 text-xs">
 						Faltam: {match.missingRequired.join(", ")}
 					</p>
+				)}
+				{showBehavioralMatch && (
+					<details className="bg-base-200 rounded-field mt-3 px-3 py-2.5">
+						<summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 text-sm font-medium">
+							<span>Aderência comportamental</span>
+							{profile ? (
+								<span className="text-base-content/60 text-xs font-normal">
+									{[
+										behavioralMatch.requiredTotal > 0 &&
+											`${behavioralMatch.requiredMatched}/${behavioralMatch.requiredTotal} obrigatórias`,
+										behavioralMatch.desiredTotal > 0 &&
+											`${behavioralMatch.desiredMatched}/${behavioralMatch.desiredTotal} desejáveis`,
+									]
+										.filter(Boolean)
+										.join(" · ")}
+								</span>
+							) : (
+								<span className="text-base-content/60 text-xs font-normal">Perfil indisponível</span>
+							)}
+						</summary>
+						<div className="mt-3 space-y-3">
+							<p className="text-base-content/60 text-xs leading-5">
+								A comparação usa características registradas no perfil. Ela não representa uma nota
+								ou uma avaliação gerada a partir da entrevista.
+							</p>
+							{profile ? (
+								<ul className="space-y-2">
+									{behavioralMatch.criteria.map((criterion) => (
+										<li
+											key={criterion.id}
+											className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
+											<span className="min-w-0 flex-1 break-words">{criterion.name}</span>
+											<span className="flex flex-wrap items-center gap-1.5">
+												<Badge size="xs" variant={criterion.isRequired ? "secondary" : "ghost"}>
+													{criterion.isRequired ? "Obrigatória" : "Desejável"}
+												</Badge>
+												<Badge size="xs" variant={criterion.matched === true ? "success" : "ghost"}>
+													{criterion.matched === true ? "Consta no perfil" : "Não consta no perfil"}
+												</Badge>
+											</span>
+										</li>
+									))}
+								</ul>
+							) : (
+								<p className="text-base-content/60 text-xs">Não foi possível comparar sem o perfil do candidato.</p>
+							)}
+						</div>
+					</details>
 				)}
 			</div>
 
