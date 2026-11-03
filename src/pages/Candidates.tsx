@@ -1,6 +1,6 @@
 import {useMemo, useState, type JSX} from "react";
 import {Link} from "react-router-dom";
-import {RiCalendarLine, RiMedalLine, RiSearchLine, RiTeamLine, RiUploadCloud2Line} from "@remixicon/react";
+import {RiCalendarLine, RiLinkedinLine, RiMedalLine, RiSearchLine, RiTeamLine, RiUploadCloud2Line} from "@remixicon/react";
 import PageHeader from "../components/layout/PageHeader";
 import {
 	Avatar,
@@ -60,7 +60,15 @@ export default function Candidates(): JSX.Element {
 					{label: "Dashboard", href: "/"},
 					{label: "Candidatos", href: "/candidatos"},
 				]}
-				actions={importAction}
+				actions={
+					<>
+						<Link to="/candidatos/importar-linkedin" className="btn btn-outline btn-sm">
+							<RiLinkedinLine className="size-4" />
+							Importar do LinkedIn
+						</Link>
+						{importAction}
+					</>
+				}
 			/>
 
 			<ListToolbar
