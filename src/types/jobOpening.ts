@@ -5,6 +5,13 @@ export type JobOpeningSkill = {
 	isRequired: boolean;
 };
 
+/** Característica comportamental definida como critério para a vaga. */
+export type JobOpeningCulturalFit = {
+	culturalFitId: string;
+	culturalFitName: string;
+	isRequired: boolean;
+};
+
 /** Vaga (`JobOpening` na API). */
 export type JobOpening = {
 	id: string;
@@ -15,6 +22,7 @@ export type JobOpening = {
 	companyId: number;
 	userId: number;
 	skills?: JobOpeningSkill[];
+	culturalFits?: JobOpeningCulturalFit[];
 	createdAt: string;
 	updatedAt: string;
 };
