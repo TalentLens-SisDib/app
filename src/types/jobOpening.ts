@@ -32,11 +32,17 @@ export type JobOpeningSkillInput = {
 	isRequired: boolean;
 };
 
+export type JobOpeningCulturalFitInput = {
+	culturalFitId: string;
+	isRequired: boolean;
+};
+
 export type CreateJobOpeningInput = {
 	name: string;
 	description: string;
 	expectedWage: number;
 	skills?: JobOpeningSkillInput[];
+	culturalFits?: JobOpeningCulturalFitInput[];
 };
 
 export type UpdateJobOpeningInput = Partial<CreateJobOpeningInput>;
