@@ -1,34 +1,41 @@
 import {useId, useState, type JSX, type KeyboardEvent} from "react";
 import {RiAddLine, RiSearchLine} from "@remixicon/react";
 import {isApiError} from "../../api/errors";
-import type {Skill} from "../../types/skill";
+
+/** Item de catálogo da API (competência ou característica comportamental). */
+export type CatalogItem = {id: string; name: string};
 
 const MAX_OPTIONS = 8;
 
-type Option = {kind: "skill"; skill: Skill} | {kind: "create"; name: string};
+type Option<T extends CatalogItem> = {kind: "skill"; skill: T} | {kind: "create"; name: string};
 
-export type SkillPickerProps = {
+export type SkillPickerProps<T extends CatalogItem> = {
 	/** Catálogo completo — usado para saber se o nome digitado já existe. */
-	skills: Skill[];
+	skills: T[];
 	/** Ids já adicionados à vaga (não aparecem como opção). */
 	selectedIds: Set<string>;
-	onSelect: (skill: Skill) => void;
+	onSelect: (skill: T) => void;
 	/** Cria a competência no catálogo; o picker adiciona o resultado em seguida. */
-	onCreate: (name: string) => Promise<Skill>;
+	onCreate: (name: string) => Promise<T>;
 	disabled?: boolean;
+	/** Nome do item no singular e no plural (feminino), para rótulos e mensagens. */
+	noun?: {singular: string; plural: string};
 };
 
+const SKILL_NOUN = {singular: "competência", plural: "Competências"};
+
 /**
- * Busca de competências com criação na hora: se o termo não existe no
- * catálogo, a última opção cria a competência e já a adiciona à vaga.
+ * Busca no catálogo com criação na hora: se o termo não existe, a última
+ * opção cria o item (competência ou característica) e já o adiciona à vaga.
  */
-export default function SkillPicker({
+export default function SkillPicker<T extends CatalogItem>({
 	skills,
 	selectedIds,
 	onSelect,
 	onCreate,
 	disabled,
-}: SkillPickerProps): JSX.Element {
+	noun = SKILL_NOUN,
+}: SkillPickerProps<T>): JSX.Element {
 	const listId = useId();
 	const [query, setQuery] = useState("");
 	const [open, setOpen] = useState(false);
@@ -39,7 +46,7 @@ export default function SkillPicker({
 	const term = query.trim();
 	const lowerTerm = term.toLowerCase();
 	const exactMatch = skills.find((skill) => skill.name.toLowerCase() === lowerTerm);
-	const options: Option[] = skills
+	const options: Option<T>[] = skills
 		.filter((skill) => !selectedIds.has(skill.id) && skill.name.toLowerCase().includes(lowerTerm))
 		.slice(0, MAX_OPTIONS)
 		.map((skill) => ({kind: "skill", skill}));
@@ -48,7 +55,7 @@ export default function SkillPicker({
 	const showList = open && (options.length > 0 || Boolean(term));
 	const activeIndex = Math.min(highlight, options.length - 1);
 
-	async function choose(option: Option) {
+	async function choose(option: Option<T>) {
 		setError(null);
 		if (option.kind === "skill") {
 			onSelect(option.skill);
@@ -59,8 +66,8 @@ export default function SkillPicker({
 			} catch (err) {
 				setError(
 					isApiError(err) && err.status === 409
-						? "Já existe uma competência com esse nome."
-						: "Não foi possível criar a competência.",
+						? `Já existe uma ${noun.singular} com esse nome.`
+						: `Não foi possível criar a ${noun.singular}.`,
 				);
 				return;
 			} finally {
@@ -98,12 +105,12 @@ export default function SkillPicker({
 				<RiSearchLine className="text-base-content/45 size-4 shrink-0" />
 				<input
 					role="combobox"
-					aria-label="Buscar ou criar competência"
+					aria-label={`Buscar ou criar ${noun.singular}`}
 					aria-expanded={showList}
 					aria-controls={listId}
 					aria-autocomplete="list"
 					aria-activedescendant={showList && options.length > 0 ? `${listId}-${activeIndex}` : undefined}
-					placeholder="Buscar ou criar competência..."
+					placeholder={`Buscar ou criar ${noun.singular}...`}
 					disabled={disabled || creating}
 					value={query}
 					maxLength={100}
@@ -125,7 +132,7 @@ export default function SkillPicker({
 				<ul
 					id={listId}
 					role="listbox"
-					aria-label="Competências"
+					aria-label={noun.plural}
 					className="border-base-300 bg-base-100 rounded-field mt-1.5 max-h-56 overflow-y-auto border p-1 shadow-sm">
 					{options.length === 0 ? (
 						<li className="text-base-content/60 px-3 py-2 text-sm">

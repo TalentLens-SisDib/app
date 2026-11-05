@@ -2,6 +2,7 @@ import {useEffect, useState, type JSX} from "react";
 import {Link, useParams} from "react-router-dom";
 import {RiArrowLeftLine, RiEditLine} from "@remixicon/react";
 import PageHeader from "../components/layout/PageHeader";
+import AdaptationPanel from "../components/profiles/AdaptationPanel";
 import ProfileEditor from "../components/profiles/ProfileEditor";
 import {Alert, Badge, Button, Card, RichText, Spinner} from "../components/ui";
 import {isApiError} from "../api/errors";
@@ -206,6 +207,11 @@ export default function ProfileDetail(): JSX.Element {
 							</ul>
 						) : <p className="text-base-content/55 text-sm">Nenhuma entrevista associada a este perfil.</p>}
 					</Card>
+
+					<AdaptationPanel
+						profile={profile}
+						onSaved={(updated) => setLoadResult({key: loadKey, profile: updated, error: null})}
+					/>
 				</div>
 			)}
 		</>

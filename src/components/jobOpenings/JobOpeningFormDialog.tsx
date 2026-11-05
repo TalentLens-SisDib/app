@@ -4,10 +4,12 @@ import {RiCloseLine} from "@remixicon/react";
 import {Alert, Button, CurrencyInput, Dialog, Input, RichTextEditor, Spinner} from "../ui";
 import SkillPicker from "./SkillPicker";
 import {isApiError} from "../../api/errors";
+import {useCulturalFits} from "../../hooks/useCulturalFits";
 import {useSkills} from "../../hooks/useSkills";
 import type {
 	CreateJobOpeningInput,
 	JobOpening,
+	JobOpeningCulturalFitInput,
 	JobOpeningSkillInput,
 } from "../../types/jobOpening";
 
@@ -16,6 +18,7 @@ type FormState = {
 	description: string;
 	expectedWage: number | null;
 	skills: JobOpeningSkillInput[];
+	culturalFits: JobOpeningCulturalFitInput[];
 };
 
 type FormErrors = Partial<Record<"name" | "description" | "expectedWage", string>>;
@@ -31,13 +34,14 @@ export type JobOpeningFormDialogProps = {
 const GENERIC_FORM_ERROR = "Não foi possível salvar a vaga. Tente novamente.";
 
 function toFormState(jobOpening?: JobOpening | null): FormState {
-	if (!jobOpening) return {name: "", description: "", expectedWage: null, skills: []};
+	if (!jobOpening) return {name: "", description: "", expectedWage: null, skills: [], culturalFits: []};
 	const wage = Number(jobOpening.expectedWage);
 	return {
 		name: jobOpening.name,
 		description: jobOpening.description,
 		expectedWage: Number.isFinite(wage) ? wage : null,
 		skills: (jobOpening.skills ?? []).map(({skillId, isRequired}) => ({skillId, isRequired})),
+		culturalFits: (jobOpening.culturalFits ?? []).map(({culturalFitId, isRequired}) => ({culturalFitId, isRequired})),
 	};
 }
 
@@ -57,6 +61,12 @@ export default function JobOpeningFormDialog({
 		error: skillsError,
 		create: createSkill,
 	} = useSkills();
+	const {
+		culturalFits,
+		loading: culturalFitsLoading,
+		error: culturalFitsError,
+		create: createCulturalFit,
+	} = useCulturalFits();
 	const [form, setForm] = useState<FormState>(() => toFormState(jobOpening));
 	const [errors, setErrors] = useState<FormErrors>({});
 	const [formError, setFormError] = useState<string | null>(null);
@@ -68,6 +78,11 @@ export default function JobOpeningFormDialog({
 		skills.find((skill) => skill.id === id)?.name ??
 		jobOpening?.skills?.find((skill) => skill.skillId === id)?.skillName ??
 		"Competência";
+	const selectedFitIds = new Set(form.culturalFits.map((fit) => fit.culturalFitId));
+	const culturalFitName = (id: string) =>
+		culturalFits.find((fit) => fit.id === id)?.name ??
+		jobOpening?.culturalFits?.find((fit) => fit.culturalFitId === id)?.culturalFitName ??
+		"Característica";
 
 	function close() {
 		if (!submitting) onClose();
@@ -94,6 +109,27 @@ export default function JobOpeningFormDialog({
 		setForm((prev) => ({...prev, skills: prev.skills.filter((skill) => skill.skillId !== skillId)}));
 	}
 
+	function addCulturalFit(culturalFitId: string) {
+		setForm((prev) =>
+			prev.culturalFits.some((fit) => fit.culturalFitId === culturalFitId)
+				? prev
+				: {...prev, culturalFits: [...prev.culturalFits, {culturalFitId, isRequired: true}]},
+		);
+	}
+
+	function toggleCulturalFitRequired(culturalFitId: string) {
+		setForm((prev) => ({
+			...prev,
+			culturalFits: prev.culturalFits.map((fit) =>
+				fit.culturalFitId === culturalFitId ? {...fit, isRequired: !fit.isRequired} : fit,
+			),
+		}));
+	}
+
+	function removeCulturalFit(culturalFitId: string) {
+		setForm((prev) => ({...prev, culturalFits: prev.culturalFits.filter((fit) => fit.culturalFitId !== culturalFitId)}));
+	}
+
 	async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
 		if (submitting) return;
@@ -114,6 +150,7 @@ export default function JobOpeningFormDialog({
 				description: form.description,
 				expectedWage: form.expectedWage,
 				skills: form.skills,
+				culturalFits: form.culturalFits,
 			});
 			onClose();
 		} catch (err) {
@@ -195,31 +232,15 @@ export default function JobOpeningFormDialog({
 					)}
 
 					{form.skills.length > 0 ? (
-						<ul className="border-base-300 divide-base-300 rounded-box divide-y border">
-							{form.skills.map((skill) => (
-								<li key={skill.skillId} className="flex items-center gap-3 px-3 py-2">
-									<span className="min-w-0 flex-1 truncate text-sm font-medium">
-										{skillName(skill.skillId)}
-									</span>
-									<label className="text-base-content/70 flex cursor-pointer items-center gap-2 text-xs">
-										<input
-											type="checkbox"
-											className="toggle toggle-primary toggle-sm"
-											checked={skill.isRequired}
-											onChange={() => toggleRequired(skill.skillId)}
-										/>
-										<span className="w-20">{skill.isRequired ? "Obrigatória" : "Desejável"}</span>
-									</label>
-									<button
-										type="button"
-										aria-label={`Remover ${skillName(skill.skillId)}`}
-										onClick={() => removeSkill(skill.skillId)}
-										className="btn btn-ghost btn-xs btn-square">
-										<RiCloseLine className="size-4" />
-									</button>
-								</li>
-							))}
-						</ul>
+						<CriteriaList
+							items={form.skills.map((skill) => ({
+								id: skill.skillId,
+								name: skillName(skill.skillId),
+								isRequired: skill.isRequired,
+							}))}
+							onToggleRequired={toggleRequired}
+							onRemove={removeSkill}
+						/>
 					) : (
 						<p className="ds-field-note ds-field-note-muted">
 							Adicione as competências da vaga e marque quais são obrigatórias. O catálogo
@@ -231,7 +252,80 @@ export default function JobOpeningFormDialog({
 						</p>
 					)}
 				</fieldset>
+
+				<fieldset className="space-y-2">
+					<legend className="ds-field-label">Características comportamentais</legend>
+
+					{culturalFitsError ? (
+						<p className="ds-field-note ds-field-note-error">{culturalFitsError}</p>
+					) : culturalFitsLoading ? (
+						<div className="text-base-content/60 flex items-center gap-2 text-sm">
+							<Spinner size="xs" /> Carregando características...
+						</div>
+					) : (
+						<SkillPicker
+							skills={culturalFits}
+							selectedIds={selectedFitIds}
+							disabled={submitting}
+							noun={{singular: "característica", plural: "Características comportamentais"}}
+							onSelect={(fit) => addCulturalFit(fit.id)}
+							onCreate={(name) => createCulturalFit({name})}
+						/>
+					)}
+
+					{form.culturalFits.length > 0 ? (
+						<CriteriaList
+							items={form.culturalFits.map((fit) => ({
+								id: fit.culturalFitId,
+								name: culturalFitName(fit.culturalFitId),
+								isRequired: fit.isRequired,
+							}))}
+							onToggleRequired={toggleCulturalFitRequired}
+							onRemove={removeCulturalFit}
+						/>
+					) : (
+						<p className="ds-field-note ds-field-note-muted">
+							Adicione o fit cultural esperado (ex.: Trabalho em equipe) e marque o que é obrigatório. Esses
+							critérios guiam a aderência dos candidatos e o acompanhamento da adaptação.
+						</p>
+					)}
+				</fieldset>
 			</form>
 		</Dialog>
+	);
+}
+
+type CriteriaListProps = {
+	items: {id: string; name: string; isRequired: boolean}[];
+	onToggleRequired: (id: string) => void;
+	onRemove: (id: string) => void;
+};
+
+/** Critérios já adicionados à vaga, com obrigatória/desejável e remoção. */
+function CriteriaList({items, onToggleRequired, onRemove}: CriteriaListProps): JSX.Element {
+	return (
+		<ul className="border-base-300 divide-base-300 rounded-box divide-y border">
+			{items.map((item) => (
+				<li key={item.id} className="flex items-center gap-3 px-3 py-2">
+					<span className="min-w-0 flex-1 truncate text-sm font-medium">{item.name}</span>
+					<label className="text-base-content/70 flex cursor-pointer items-center gap-2 text-xs">
+						<input
+							type="checkbox"
+							className="toggle toggle-primary toggle-sm"
+							checked={item.isRequired}
+							onChange={() => onToggleRequired(item.id)}
+						/>
+						<span className="w-20">{item.isRequired ? "Obrigatória" : "Desejável"}</span>
+					</label>
+					<button
+						type="button"
+						aria-label={`Remover ${item.name}`}
+						onClick={() => onRemove(item.id)}
+						className="btn btn-ghost btn-xs btn-square">
+						<RiCloseLine className="size-4" />
+					</button>
+				</li>
+			))}
+		</ul>
 	);
 }
