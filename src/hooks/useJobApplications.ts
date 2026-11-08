@@ -1,11 +1,13 @@
 import {useCallback, useEffect, useState} from "react";
 import {isApiError} from "../api/errors";
 import {
+	advanceApplication,
 	createApplication,
 	deleteApplication,
 	getApplications,
+	updateApplicationStatus,
 } from "../api/services/applications";
-import type {JobApplication} from "../types/application";
+import type {ApplicationStatus, JobApplication} from "../types/application";
 
 const GENERIC_ERROR = "Não foi possível carregar os candidatos da vaga.";
 
@@ -67,5 +69,32 @@ export function useJobApplications(jobOpeningId: string) {
 		[jobOpeningId],
 	);
 
-	return {applications, loading, error, reload, link, unlink};
+	const replace = useCallback((updated: JobApplication) => {
+		setApplications((prev) =>
+			prev.map((item) => (item.profileId === updated.profileId ? updated : item)),
+		);
+	}, []);
+
+	/** Encaminha para a próxima etapa a partir da etapa que a tela está mostrando. */
+	const advance = useCallback(
+		async (application: JobApplication) => {
+			const updated = await advanceApplication(jobOpeningId, application.profileId, {
+				fromStepId: application.currentStep?.id ?? null,
+			});
+			replace(updated);
+			return updated;
+		},
+		[jobOpeningId, replace],
+	);
+
+	const setStatus = useCallback(
+		async (profileId: string, status: ApplicationStatus) => {
+			const updated = await updateApplicationStatus(jobOpeningId, profileId, {status});
+			replace(updated);
+			return updated;
+		},
+		[jobOpeningId, replace],
+	);
+
+	return {applications, loading, error, reload, link, unlink, advance, setStatus};
 }

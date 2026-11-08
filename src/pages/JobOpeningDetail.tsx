@@ -303,6 +303,7 @@ export default function JobOpeningDetail(): JSX.Element {
 						<CandidatesPanel
 							jobOpening={jobOpening}
 							canManage={canManage}
+							steps={steps}
 							{...applications}
 						/>
 					) : selectedStep && session ? (

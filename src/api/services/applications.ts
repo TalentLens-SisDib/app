@@ -1,9 +1,28 @@
 import {apiClient} from "../client";
-import type {CreateApplicationInput, JobApplication} from "../../types/application";
+import type {
+	AdvanceApplicationInput,
+	CreateApplicationInput,
+	JobApplication,
+	JobApplicationResponse,
+	UpdateApplicationStatusInput,
+} from "../../types/application";
 import type {ProfileApplication} from "../../types/profile";
 
-export function getApplications(jobOpeningId: string): Promise<JobApplication[]> {
-	return apiClient.get<JobApplication[]>(`/job-openings/${jobOpeningId}/applications`);
+/** Preenche etapa e status quando a API ainda não os envia. */
+export function normalizeApplication(application: JobApplicationResponse): JobApplication {
+	return {
+		...application,
+		currentStep: application.currentStep ?? null,
+		status: application.status ?? "InProgress",
+		stageUpdatedAt: application.stageUpdatedAt ?? application.appliedAt,
+	};
+}
+
+export async function getApplications(jobOpeningId: string): Promise<JobApplication[]> {
+	const applications = await apiClient.get<JobApplicationResponse[]>(
+		`/job-openings/${jobOpeningId}/applications`,
+	);
+	return applications.map(normalizeApplication);
 }
 
 /** Vagas de um perfil — vêm no campo `applications` de `GET /profiles/{id}`. */
@@ -11,18 +30,54 @@ export async function getProfileApplications(profileId: string): Promise<JobAppl
 	const profile = await apiClient.get<{name: string; applications?: ProfileApplication[]}>(
 		`/profiles/${profileId}`,
 	);
-	return (profile.applications ?? []).map((application) => ({
-		...application,
-		profileName: profile.name,
-	}));
+	return (profile.applications ?? []).map((application) =>
+		normalizeApplication({...application, profileName: profile.name}),
+	);
 }
 
 /** Só o dono da vaga ou um Admin. 409 se o candidato já está na vaga. */
-export function createApplication(
+export async function createApplication(
 	jobOpeningId: string,
 	data: CreateApplicationInput,
 ): Promise<JobApplication> {
-	return apiClient.post<JobApplication>(`/job-openings/${jobOpeningId}/applications`, data);
+	return normalizeApplication(
+		await apiClient.post<JobApplicationResponse>(`/job-openings/${jobOpeningId}/applications`, data),
+	);
+}
+
+/**
+ * Encaminha o candidato para a próxima etapa da vaga (ou para a primeira, se
+ * ainda não começou). Só o dono da vaga ou um Admin. 409 se a candidatura está
+ * encerrada, já está na última etapa ou mudou desde que a tela foi carregada.
+ */
+export async function advanceApplication(
+	jobOpeningId: string,
+	profileId: string,
+	data: AdvanceApplicationInput,
+): Promise<JobApplication> {
+	return normalizeApplication(
+		await apiClient.post<JobApplicationResponse>(
+			`/job-openings/${jobOpeningId}/applications/${profileId}/advance`,
+			data,
+		),
+	);
+}
+
+/**
+ * Aprova (só na última etapa), reprova ou reabre a candidatura.
+ * Só o dono da vaga ou um Admin. 409 se a mudança não é permitida.
+ */
+export async function updateApplicationStatus(
+	jobOpeningId: string,
+	profileId: string,
+	data: UpdateApplicationStatusInput,
+): Promise<JobApplication> {
+	return normalizeApplication(
+		await apiClient.patch<JobApplicationResponse>(
+			`/job-openings/${jobOpeningId}/applications/${profileId}/status`,
+			data,
+		),
+	);
 }
 
 /** Só o dono da vaga ou um Admin. */

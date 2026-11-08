@@ -1,19 +1,45 @@
 import {useMemo, useState, type JSX} from "react";
 import {Link} from "react-router-dom";
-import {RiCloseLine, RiTeamLine, RiUserAddLine} from "@remixicon/react";
+import {
+	RiArrowGoBackLine,
+	RiArrowRightLine,
+	RiCheckLine,
+	RiCloseCircleLine,
+	RiCloseLine,
+	RiTeamLine,
+	RiUserAddLine,
+} from "@remixicon/react";
 import {Alert, Avatar, Badge, Button, Dialog, Spinner} from "../ui";
 import {toast} from "../ui/toastStore";
 import LinkCandidatesDialog from "./LinkCandidatesDialog";
 import {isApiError} from "../../api/errors";
 import {useProfiles} from "../../hooks/useProfiles";
-import type {JobApplication} from "../../types/application";
+import type {ApplicationStatus, JobApplication} from "../../types/application";
 import type {JobOpening} from "../../types/jobOpening";
 import type {Profile} from "../../types/profile";
+import type {Step} from "../../types/step";
+import {
+	applicationStage,
+	countByStep,
+	STATUS_LABEL,
+	type ApplicationStage,
+	type StageAction,
+} from "../../utils/applicationStage";
 import {formatDate} from "../../utils/format";
 import {matchBehavioralCriteria, type BehavioralMatch} from "../../utils/behavioralMatch";
 import {compareMatch, matchSkills, type SkillMatch} from "../../utils/skillMatch";
 
 const GENERIC_UNLINK_ERROR = "Não foi possível desvincular o candidato. Tente novamente.";
+const GENERIC_STAGE_ERROR = "Não foi possível atualizar o candidato. Tente novamente.";
+const STALE_STAGE_ERROR =
+	"O candidato mudou de etapa ou de status desde que a lista foi carregada. A lista foi atualizada; confira e tente de novo.";
+const MISSING_STAGE_ERROR =
+	"Candidatura não encontrada, ou a API ainda não oferece a mudança de etapa.";
+
+/** `"all"`, `"not-started"`, id de etapa, `"Hired"` ou `"Rejected"`. */
+type StageFilter = string;
+const ALL = "all";
+const NOT_STARTED = "not-started";
 
 export type CandidatesPanelProps = {
 	jobOpening: JobOpening;
@@ -24,6 +50,10 @@ export type CandidatesPanelProps = {
 	reload: () => void;
 	link: (profiles: {id: string; name: string}[]) => Promise<unknown>;
 	unlink: (profileId: string) => Promise<void>;
+	/** Etapas da vaga, em qualquer ordem. */
+	steps: Step[];
+	advance: (application: JobApplication) => Promise<JobApplication>;
+	setStatus: (profileId: string, status: ApplicationStatus) => Promise<JobApplication>;
 };
 
 type Row = {
@@ -31,7 +61,10 @@ type Row = {
 	profile: Profile | undefined;
 	match: SkillMatch;
 	behavioralMatch: BehavioralMatch;
+	stage: ApplicationStage;
 };
+
+type PendingAction = {row: Row; action: StageAction};
 
 /**
  * Candidatos da vaga. As candidaturas vêm da página (que também mostra a
@@ -47,6 +80,9 @@ export default function CandidatesPanel({
 	reload,
 	link,
 	unlink,
+	steps,
+	advance,
+	setStatus,
 }: CandidatesPanelProps): JSX.Element {
 	const {profiles, loading: profilesLoading, error: profilesError, reload: reloadProfiles} =
 		useProfiles();
@@ -54,6 +90,9 @@ export default function CandidatesPanel({
 	const [linkKey, setLinkKey] = useState(0);
 	const [unlinkTarget, setUnlinkTarget] = useState<Row | null>(null);
 	const [unlinking, setUnlinking] = useState(false);
+	const [pending, setPending] = useState<PendingAction | null>(null);
+	const [applying, setApplying] = useState(false);
+	const [filter, setFilter] = useState<StageFilter>(ALL);
 
 	const profilesById = useMemo(
 		() => new Map(profiles.map((profile) => [profile.id, profile])),
@@ -66,7 +105,7 @@ export default function CandidatesPanel({
 	const hasJobSkills = (jobOpening.skills ?? []).length > 0;
 	const hasBehavioralCriteria = (jobOpening.culturalFits ?? []).length > 0;
 
-	// Mais aderentes primeiro; empate pela candidatura mais recente.
+	// Mais aderentes primeiro; reprovados no fim; empate pela candidatura mais recente.
 	const rows = useMemo<Row[]>(
 		() =>
 			applications
@@ -77,15 +116,44 @@ export default function CandidatesPanel({
 						profile,
 						match: matchSkills(jobOpening, profile),
 						behavioralMatch: matchBehavioralCriteria(jobOpening, profile),
+						stage: applicationStage(application, steps),
 					};
 				})
 				.sort(
 					(a, b) =>
+						Number(a.application.status === "Rejected") -
+							Number(b.application.status === "Rejected") ||
 						compareMatch(a.match, b.match) ||
 						b.application.appliedAt.localeCompare(a.application.appliedAt),
 				),
-		[applications, profilesById, jobOpening],
+		[applications, profilesById, jobOpening, steps],
 	);
+
+	const orderedSteps = useMemo(() => [...steps].sort((a, b) => a.order - b.order), [steps]);
+	const funnel = useMemo(() => {
+		const counts = countByStep(applications);
+		const closed = (status: ApplicationStatus) =>
+			applications.filter((application) => application.status === status).length;
+		return [
+			{key: NOT_STARTED, label: "Não iniciado", count: counts.get(null) ?? 0},
+			...orderedSteps.map((step) => ({key: step.id, label: step.name, count: counts.get(step.id) ?? 0})),
+			{key: "Hired", label: STATUS_LABEL.Hired, count: closed("Hired")},
+			{key: "Rejected", label: STATUS_LABEL.Rejected, count: closed("Rejected")},
+		];
+	}, [applications, orderedSteps]);
+
+	// Filtro que deixou de existir (etapa removida) volta para "Todos".
+	const activeFilter = filter === ALL || funnel.some((item) => item.key === filter) ? filter : ALL;
+	const visibleRows = useMemo(() => {
+		if (activeFilter === ALL) return rows;
+		return rows.filter(({application}) => {
+			if (activeFilter === "Hired" || activeFilter === "Rejected") {
+				return application.status === activeFilter;
+			}
+			if (application.status !== "InProgress") return false;
+			return (application.currentStep?.id ?? NOT_STARTED) === activeFilter;
+		});
+	}, [rows, activeFilter]);
 
 	function openLink() {
 		setLinkKey((key) => key + 1);
@@ -115,6 +183,43 @@ export default function CandidatesPanel({
 		}
 	}
 
+	async function confirmAction() {
+		if (!pending) return;
+		const {row, action} = pending;
+		const name = row.profile?.name ?? row.application.profileName;
+		setApplying(true);
+		try {
+			if (action.kind === "advance") {
+				await advance(row.application);
+				toast.success(`${name} encaminhado(a) para ${action.to.name}`);
+			} else {
+				const status: ApplicationStatus =
+					action.kind === "hire" ? "Hired" : action.kind === "reject" ? "Rejected" : "InProgress";
+				await setStatus(row.application.profileId, status);
+				toast.success(
+					action.kind === "hire"
+						? `${name} aprovado(a) no processo`
+						: action.kind === "reject"
+							? `${name} reprovado(a) no processo`
+							: `Candidatura de ${name} reaberta`,
+				);
+			}
+			setPending(null);
+		} catch (err) {
+			if (isApiError(err) && err.status === 409) {
+				toast.error(STALE_STAGE_ERROR);
+				setPending(null);
+				reload();
+			} else if (isApiError(err) && err.status === 404) {
+				toast.error(MISSING_STAGE_ERROR);
+			} else {
+				toast.error(isApiError(err) ? err.message : GENERIC_STAGE_ERROR);
+			}
+		} finally {
+			setApplying(false);
+		}
+	}
+
 	const anyError = error ?? profilesError;
 	const isLoading = loading || profilesLoading;
 
@@ -130,7 +235,7 @@ export default function CandidatesPanel({
 					</h2>
 					{hasJobSkills && rows.length > 0 && (
 						<p className="text-base-content/60 mt-1 text-sm">
-							Ordenados pela aderência às competências da vaga.
+							Ordenados pela aderência às competências da vaga; reprovados ao final.
 						</p>
 					)}
 				</div>
@@ -175,18 +280,41 @@ export default function CandidatesPanel({
 					</div>
 				</div>
 			) : (
-				<ul className="border-base-300 divide-base-300 rounded-box divide-y border">
-					{rows.map((row) => (
-						<CandidateRow
-							key={row.application.profileId}
-							row={row}
-							showMatch={hasJobSkills}
-							showBehavioralMatch={hasBehavioralCriteria}
-							canManage={canManage}
-							onUnlink={() => setUnlinkTarget(row)}
-						/>
-					))}
-				</ul>
+				<>
+					<StageFunnel
+						items={funnel}
+						total={rows.length}
+						active={activeFilter}
+						onSelect={(key) => setFilter((current) => (current === key ? ALL : key))}
+					/>
+					{orderedSteps.length === 0 && canManage && (
+						<p className="text-base-content/60 text-sm">
+							Cadastre as etapas da vaga para encaminhar os candidatos no processo.
+						</p>
+					)}
+					{visibleRows.length === 0 ? (
+						<div className="border-base-300 rounded-box flex flex-col items-center gap-2 border border-dashed px-4 py-8 text-center">
+							<p className="text-sm font-medium">Nenhum candidato neste filtro</p>
+							<Button size="xs" variant="ghost" onClick={() => setFilter(ALL)}>
+								Mostrar todos
+							</Button>
+						</div>
+					) : (
+						<ul className="border-base-300 divide-base-300 rounded-box divide-y border">
+							{visibleRows.map((row) => (
+								<CandidateRow
+									key={row.application.profileId}
+									row={row}
+									showMatch={hasJobSkills}
+									showBehavioralMatch={hasBehavioralCriteria}
+									canManage={canManage}
+									onUnlink={() => setUnlinkTarget(row)}
+									onAction={(action) => setPending({row, action})}
+								/>
+							))}
+						</ul>
+					)}
+				</>
 			)}
 
 			<LinkCandidatesDialog
@@ -197,6 +325,14 @@ export default function CandidatesPanel({
 				profiles={profiles}
 				linkedIds={linkedIds}
 				onSubmit={handleLink}
+			/>
+
+			<StageActionDialog
+				pending={pending}
+				jobName={jobOpening.name}
+				applying={applying}
+				onCancel={() => !applying && setPending(null)}
+				onConfirm={confirmAction}
 			/>
 
 			<Dialog
@@ -229,10 +365,18 @@ type CandidateRowProps = {
 	showBehavioralMatch: boolean;
 	canManage: boolean;
 	onUnlink: () => void;
+	onAction: (action: StageAction) => void;
 };
 
-function CandidateRow({row, showMatch, showBehavioralMatch, canManage, onUnlink}: CandidateRowProps): JSX.Element {
-	const {application, profile, match, behavioralMatch} = row;
+function CandidateRow({
+	row,
+	showMatch,
+	showBehavioralMatch,
+	canManage,
+	onUnlink,
+	onAction,
+}: CandidateRowProps): JSX.Element {
+	const {application, profile, match, behavioralMatch, stage} = row;
 	const name = profile?.name ?? application.profileName;
 	const allRequired = match.requiredTotal > 0 && match.requiredMatched === match.requiredTotal;
 
@@ -264,6 +408,7 @@ function CandidateRow({row, showMatch, showBehavioralMatch, canManage, onUnlink}
 					Vinculado em {formatDate(application.appliedAt)}
 					{!profile && " · perfil não encontrado"}
 				</p>
+				<StageSummary application={application} stage={stage} />
 				{showMatch && match.missingRequired.length > 0 && (
 					<p className="text-base-content/60 mt-1 text-xs">
 						Faltam: {match.missingRequired.join(", ")}
@@ -317,6 +462,12 @@ function CandidateRow({row, showMatch, showBehavioralMatch, canManage, onUnlink}
 						</div>
 					</details>
 				)}
+				{canManage && (stage.primary || stage.secondary) && (
+					<div className="mt-3 flex flex-wrap items-center gap-2">
+						{stage.primary && <StageActionButton action={stage.primary} onClick={onAction} primary />}
+						{stage.secondary && <StageActionButton action={stage.secondary} onClick={onAction} />}
+					</div>
+				)}
 			</div>
 
 			{canManage && (
@@ -329,5 +480,213 @@ function CandidateRow({row, showMatch, showBehavioralMatch, canManage, onUnlink}
 				</button>
 			)}
 		</li>
+	);
+}
+
+const STATUS_BADGE: Record<ApplicationStatus, "info" | "success" | "error"> = {
+	InProgress: "info",
+	Hired: "success",
+	Rejected: "error",
+};
+
+function StageSummary({
+	application,
+	stage,
+}: {
+	application: JobApplication;
+	stage: ApplicationStage;
+}): JSX.Element {
+	const stepLabel = stage.current
+		? stage.total > 0
+			? `Etapa ${stage.position} de ${stage.total} · ${stage.current.name}`
+			: stage.current.name
+		: "Ainda não iniciou as etapas";
+
+	return (
+		<div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+			<Badge size="xs" variant={STATUS_BADGE[application.status]}>
+				{STATUS_LABEL[application.status]}
+			</Badge>
+			<span className="text-base-content/70">{stepLabel}</span>
+			{application.stageUpdatedAt !== application.appliedAt && (
+				<span className="text-base-content/50">
+					· atualizado em {formatDate(application.stageUpdatedAt)}
+				</span>
+			)}
+		</div>
+	);
+}
+
+function actionLabel(action: StageAction): string {
+	switch (action.kind) {
+		case "advance":
+			return action.from ? `Encaminhar para ${action.to.name}` : `Iniciar em ${action.to.name}`;
+		case "hire":
+			return "Aprovar candidato";
+		case "reject":
+			return "Reprovar";
+		case "reopen":
+			return "Reabrir candidatura";
+	}
+}
+
+function StageActionButton({
+	action,
+	onClick,
+	primary = false,
+}: {
+	action: StageAction;
+	onClick: (action: StageAction) => void;
+	primary?: boolean;
+}): JSX.Element {
+	const icon =
+		action.kind === "advance" ? (
+			<RiArrowRightLine className="size-4" />
+		) : action.kind === "hire" ? (
+			<RiCheckLine className="size-4" />
+		) : action.kind === "reject" ? (
+			<RiCloseCircleLine className="size-4" />
+		) : (
+			<RiArrowGoBackLine className="size-4" />
+		);
+
+	return (
+		<Button
+			size="xs"
+			variant={primary ? (action.kind === "hire" ? "success" : "primary") : "ghost"}
+			onClick={() => onClick(action)}>
+			{icon}
+			{actionLabel(action)}
+		</Button>
+	);
+}
+
+type FunnelItem = {key: string; label: string; count: number};
+
+/** Contagem por etapa; clicar filtra a lista (clicar de novo limpa). */
+function StageFunnel({
+	items,
+	total,
+	active,
+	onSelect,
+}: {
+	items: FunnelItem[];
+	total: number;
+	active: StageFilter;
+	onSelect: (key: StageFilter) => void;
+}): JSX.Element {
+	const chip = (key: string, label: string, count: number) => {
+		const selected = active === key;
+		return (
+			<li key={key}>
+				<button
+					type="button"
+					aria-pressed={selected}
+					onClick={() => onSelect(key)}
+					className={`rounded-field flex items-center gap-1.5 border px-2.5 py-1 text-xs transition-colors ${
+						selected
+							? "border-primary bg-primary/8 text-primary"
+							: "border-base-300 text-base-content/70 hover:border-base-content/30"
+					}`}>
+					<span className="max-w-40 truncate">{label}</span>
+					<span className="font-semibold tabular-nums">{count}</span>
+				</button>
+			</li>
+		);
+	};
+
+	return (
+		<nav aria-label="Candidatos por etapa">
+			<ul className="flex flex-wrap items-center gap-1.5">
+				{chip(ALL, "Todos", total)}
+				{items.map((item) => chip(item.key, item.label, item.count))}
+			</ul>
+		</nav>
+	);
+}
+
+function StageActionDialog({
+	pending,
+	jobName,
+	applying,
+	onCancel,
+	onConfirm,
+}: {
+	pending: PendingAction | null;
+	jobName: string;
+	applying: boolean;
+	onCancel: () => void;
+	onConfirm: () => void;
+}): JSX.Element {
+	const action = pending?.action;
+	const name = pending ? (pending.row.profile?.name ?? pending.row.application.profileName) : "";
+
+	const title =
+		action?.kind === "advance"
+			? "Encaminhar candidato?"
+			: action?.kind === "hire"
+				? "Aprovar candidato?"
+				: action?.kind === "reject"
+					? "Reprovar candidato?"
+					: "Reabrir candidatura?";
+
+	const confirmLabel =
+		action?.kind === "advance"
+			? "Encaminhar"
+			: action?.kind === "hire"
+				? "Aprovar"
+				: action?.kind === "reject"
+					? "Reprovar"
+					: "Reabrir";
+
+	return (
+		<Dialog
+			open={pending !== null}
+			onClose={onCancel}
+			title={title}
+			actions={
+				<>
+					<Button variant="ghost" disabled={applying} onClick={onCancel}>
+						Cancelar
+					</Button>
+					<Button
+						variant={action?.kind === "reject" ? "error" : action?.kind === "hire" ? "success" : "primary"}
+						loading={applying}
+						onClick={onConfirm}>
+						{confirmLabel}
+					</Button>
+				</>
+			}>
+			{action?.kind === "advance" && (
+				<div className="space-y-3">
+					<p>
+						<strong>{name}</strong> passará para a próxima etapa da vaga <strong>{jobName}</strong>.
+					</p>
+					<div className="bg-base-200 rounded-field flex flex-wrap items-center gap-2 px-3 py-2.5 text-sm">
+						<span className="text-base-content/70">{action.from?.name ?? "Não iniciado"}</span>
+						<RiArrowRightLine className="text-base-content/50 size-4" aria-hidden />
+						<span className="font-medium">{action.to.name}</span>
+					</div>
+				</div>
+			)}
+			{action?.kind === "hire" && (
+				<p>
+					<strong>{name}</strong> concluiu a última etapa ({action.at.name}) e será marcado(a) como
+					aprovado(a) na vaga <strong>{jobName}</strong>.
+				</p>
+			)}
+			{action?.kind === "reject" && (
+				<p>
+					<strong>{name}</strong> deixará de avançar na vaga <strong>{jobName}</strong>. A etapa atual
+					fica registrada e a candidatura pode ser reaberta depois.
+				</p>
+			)}
+			{action?.kind === "reopen" && (
+				<p>
+					A candidatura de <strong>{name}</strong> volta para <em>Em andamento</em>, na mesma etapa em
+					que estava.
+				</p>
+			)}
+		</Dialog>
 	);
 }
