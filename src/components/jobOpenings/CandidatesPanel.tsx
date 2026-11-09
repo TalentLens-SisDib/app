@@ -10,8 +10,7 @@ import type {JobApplication} from "../../types/application";
 import type {JobOpening} from "../../types/jobOpening";
 import type {Profile} from "../../types/profile";
 import {formatDate} from "../../utils/format";
-import {matchBehavioralCriteria, type BehavioralMatch} from "../../utils/behavioralMatch";
-import {compareMatch, matchSkills, type SkillMatch} from "../../utils/skillMatch";
+import {prioritizeCandidates, type PrioritizedCandidate} from "../../utils/candidatePrioritization";
 
 const GENERIC_UNLINK_ERROR = "Não foi possível desvincular o candidato. Tente novamente.";
 
@@ -26,12 +25,7 @@ export type CandidatesPanelProps = {
 	unlink: (profileId: string) => Promise<void>;
 };
 
-type Row = {
-	application: JobApplication;
-	profile: Profile | undefined;
-	match: SkillMatch;
-	behavioralMatch: BehavioralMatch;
-};
+type Row = PrioritizedCandidate;
 
 /**
  * Candidatos da vaga. As candidaturas vêm da página (que também mostra a
@@ -55,10 +49,6 @@ export default function CandidatesPanel({
 	const [unlinkTarget, setUnlinkTarget] = useState<Row | null>(null);
 	const [unlinking, setUnlinking] = useState(false);
 
-	const profilesById = useMemo(
-		() => new Map(profiles.map((profile) => [profile.id, profile])),
-		[profiles],
-	);
 	const linkedIds = useMemo(
 		() => new Set(applications.map((application) => application.profileId)),
 		[applications],
@@ -66,26 +56,11 @@ export default function CandidatesPanel({
 	const hasJobSkills = (jobOpening.skills ?? []).length > 0;
 	const hasBehavioralCriteria = (jobOpening.culturalFits ?? []).length > 0;
 
-	// Mais aderentes primeiro; empate pela candidatura mais recente.
-	const rows = useMemo<Row[]>(
-		() =>
-			applications
-				.map((application) => {
-					const profile = profilesById.get(application.profileId);
-					return {
-						application,
-						profile,
-						match: matchSkills(jobOpening, profile),
-						behavioralMatch: matchBehavioralCriteria(jobOpening, profile),
-					};
-				})
-				.sort(
-					(a, b) =>
-						compareMatch(a.match, b.match) ||
-						b.application.appliedAt.localeCompare(a.application.appliedAt),
-				),
-		[applications, profilesById, jobOpening],
+	const prioritization = useMemo(
+		() => prioritizeCandidates(jobOpening, applications, profiles),
+		[applications, profiles, jobOpening],
 	);
+	const {rows} = prioritization;
 
 	function openLink() {
 		setLinkKey((key) => key + 1);
@@ -128,9 +103,11 @@ export default function CandidatesPanel({
 					<h2 id="job-candidates-title" className="mt-0.5 text-lg font-semibold">
 						Candidatos
 					</h2>
-					{hasJobSkills && rows.length > 0 && (
+					{rows.length > 0 && (
 						<p className="text-base-content/60 mt-1 text-sm">
-							Ordenados pela aderência às competências da vaga.
+							{prioritization.hasCriteria
+								? "Ordem: competências obrigatórias, critérios comportamentais obrigatórios, competências desejáveis e critérios comportamentais desejáveis; empates pela candidatura mais recente."
+								: "A vaga não tem critérios de avaliação; candidatos em ordem de inscrição."}
 						</p>
 					)}
 				</div>
@@ -182,6 +159,7 @@ export default function CandidatesPanel({
 							row={row}
 							showMatch={hasJobSkills}
 							showBehavioralMatch={hasBehavioralCriteria}
+							showPriority={prioritization.hasCriteria}
 							canManage={canManage}
 							onUnlink={() => setUnlinkTarget(row)}
 						/>
@@ -227,14 +205,17 @@ type CandidateRowProps = {
 	row: Row;
 	showMatch: boolean;
 	showBehavioralMatch: boolean;
+	showPriority: boolean;
 	canManage: boolean;
 	onUnlink: () => void;
 };
 
-function CandidateRow({row, showMatch, showBehavioralMatch, canManage, onUnlink}: CandidateRowProps): JSX.Element {
-	const {application, profile, match, behavioralMatch} = row;
+function CandidateRow({row, showMatch, showBehavioralMatch, showPriority, canManage, onUnlink}: CandidateRowProps): JSX.Element {
+	const {application, profile, skillMatch: match, behavioralMatch, priority} = row;
 	const name = profile?.name ?? application.profileName;
 	const allRequired = match.requiredTotal > 0 && match.requiredMatched === match.requiredTotal;
+	const allRequiredBehavioral =
+		behavioralMatch.requiredTotal > 0 && behavioralMatch.requiredMatched === behavioralMatch.requiredTotal;
 
 	return (
 		<li className="flex items-start gap-3 px-4 py-3">
@@ -249,6 +230,11 @@ function CandidateRow({row, showMatch, showBehavioralMatch, canManage, onUnlink}
 							</Link>
 						) : name}
 					</p>
+					{showPriority && priority !== null && (
+						<Badge size="xs" variant="primary">
+							Prioridade {priority}
+						</Badge>
+					)}
 					{showMatch && match.requiredTotal > 0 && (
 						<Badge size="xs" variant={allRequired ? "success" : match.requiredMatched > 0 ? "warning" : "ghost"}>
 							{match.requiredMatched}/{match.requiredTotal} obrigatórias
@@ -257,6 +243,18 @@ function CandidateRow({row, showMatch, showBehavioralMatch, canManage, onUnlink}
 					{showMatch && match.desiredTotal > 0 && (
 						<Badge size="xs" variant="ghost">
 							{match.desiredMatched}/{match.desiredTotal} desejáveis
+						</Badge>
+					)}
+					{showBehavioralMatch && profile && behavioralMatch.requiredTotal > 0 && (
+						<Badge
+							size="xs"
+							variant={allRequiredBehavioral ? "success" : behavioralMatch.requiredMatched > 0 ? "warning" : "ghost"}>
+							{behavioralMatch.requiredMatched}/{behavioralMatch.requiredTotal} comportamentais obrigatórias
+						</Badge>
+					)}
+					{showBehavioralMatch && profile && behavioralMatch.desiredTotal > 0 && (
+						<Badge size="xs" variant="ghost">
+							{behavioralMatch.desiredMatched}/{behavioralMatch.desiredTotal} comportamentais desejáveis
 						</Badge>
 					)}
 				</div>

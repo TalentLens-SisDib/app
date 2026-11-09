@@ -3,6 +3,7 @@ import {Link, useParams} from "react-router-dom";
 import {RiArrowLeftLine, RiEditLine} from "@remixicon/react";
 import PageHeader from "../components/layout/PageHeader";
 import AdaptationPanel from "../components/profiles/AdaptationPanel";
+import CompetencyEvidencePanel from "../components/profiles/CompetencyEvidencePanel";
 import ProfileEditor from "../components/profiles/ProfileEditor";
 import {Alert, Badge, Button, Card, RichText, Spinner} from "../components/ui";
 import {isApiError} from "../api/errors";
@@ -207,6 +208,10 @@ export default function ProfileDetail(): JSX.Element {
 							</ul>
 						) : <p className="text-base-content/55 text-sm">Nenhuma entrevista associada a este perfil.</p>}
 					</Card>
+
+					{profile.competencyEvidence !== undefined && (
+						<CompetencyEvidencePanel evidence={profile.competencyEvidence} />
+					)}
 
 					<AdaptationPanel
 						profile={profile}

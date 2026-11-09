@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "check:adaptation": "node --experimental-strip-types scripts/adaptationSelfcheck.mts",
+    "check:prioritization": "node --experimental-strip-types scripts/prioritizationSelfcheck.mts",
+    "check:competency-evidence": "node --experimental-strip-types scripts/competencyEvidenceSelfcheck.mts",
     "check:job-criteria": "node --experimental-strip-types scripts/jobCriteriaSelfcheck.mts",
     "check:resume-import": "node --experimental-strip-types scripts/resumeImportSelfcheck.mts",
     "preview": "vite preview"
