@@ -38,7 +38,7 @@ export default function CompetencyEvidencePanel({evidence}: CompetencyEvidencePa
 									<li key={item.id} className="bg-base-200 rounded-field p-3">
 										<div className="flex flex-wrap items-center gap-2">
 											<Badge size="xs" variant="secondary">
-												{SOURCE_LABELS[item.sourceType]}
+											{SOURCE_LABELS[item.sourceType] ?? SOURCE_LABELS.outro}
 											</Badge>
 											<span className="text-base-content/60 text-xs">{item.sourceLabel}</span>
 										</div>
