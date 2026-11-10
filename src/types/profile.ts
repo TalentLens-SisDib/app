@@ -1,3 +1,5 @@
+import type {CompetencyEvidence} from "./competencyEvidence";
+
 /** Competência vinculada a um perfil, como a API a devolve. */
 export type ProfileSkill = {
 	skillId: string;
@@ -61,6 +63,8 @@ export type Profile = {
 	culturalFits?: ProfileCulturalFit[];
 	educationalBackground?: ProfileEducation[];
 	profileInterviews?: ProfileInterview[];
+	/** Evidências avaliadas por competência, disponíveis após a implementação da API. */
+	competencyEvidence?: CompetencyEvidence[];
 	applications?: ProfileApplication[];
 	/** Avisos de consistência gerados apenas durante a importação do currículo. */
 	qualityIssues?: string[];
