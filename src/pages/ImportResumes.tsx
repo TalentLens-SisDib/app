@@ -11,6 +11,7 @@ import {
 	RiCloseLine,
 	RiErrorWarningLine,
 	RiFileTextLine,
+	RiLinkedinLine,
 	RiLoader4Line,
 	RiTeamLine,
 	RiUploadCloud2Line,
@@ -163,6 +164,12 @@ export default function ImportResumes(): JSX.Element {
 	return (
 		<>
 			<PageHeader
+				actions={
+					<Link to="/candidatos/importar-linkedin" className="btn btn-outline btn-sm">
+						<RiLinkedinLine className="size-4" />
+						Importar do LinkedIn
+					</Link>
+				}
 				title="Importar currículos"
 				breadcrumbs={[
 					{label: "Dashboard", href: "/"},
