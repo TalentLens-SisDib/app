@@ -1,18 +1,29 @@
 import {useMemo, useState, type JSX} from "react";
 import {Link} from "react-router-dom";
-import {RiCloseLine, RiTeamLine, RiUserAddLine} from "@remixicon/react";
+import {
+	RiArrowGoBackLine,
+	RiArrowRightLine,
+	RiCheckLine,
+	RiCloseCircleLine,
+	RiCloseLine,
+	RiTeamLine,
+	RiUserAddLine,
+} from "@remixicon/react";
 import {Alert, Avatar, Badge, Button, Dialog, Spinner} from "../ui";
 import {toast} from "../ui/toastStore";
 import LinkCandidatesDialog from "./LinkCandidatesDialog";
 import {isApiError} from "../../api/errors";
 import {useProfiles} from "../../hooks/useProfiles";
-import type {JobApplication} from "../../types/application";
+import type {ApplicationStatus, JobApplication} from "../../types/application";
 import type {JobOpening} from "../../types/jobOpening";
 import type {Profile} from "../../types/profile";
+import type {Step} from "../../types/step";
 import {formatDate} from "../../utils/format";
 import {prioritizeCandidates, type PrioritizedCandidate} from "../../utils/candidatePrioritization";
+import {applicationStage, STATUS_LABEL, type StageAction} from "../../utils/applicationStage";
 
 const GENERIC_UNLINK_ERROR = "Não foi possível desvincular o candidato. Tente novamente.";
+const GENERIC_STAGE_ERROR = "Não foi possível atualizar o candidato. Tente novamente.";
 
 export type CandidatesPanelProps = {
 	jobOpening: JobOpening;
@@ -23,9 +34,13 @@ export type CandidatesPanelProps = {
 	reload: () => void;
 	link: (profiles: {id: string; name: string}[]) => Promise<unknown>;
 	unlink: (profileId: string) => Promise<void>;
+	steps: Step[];
+	advance: (application: JobApplication) => Promise<JobApplication>;
+	setStatus: (profileId: string, status: ApplicationStatus) => Promise<JobApplication>;
 };
 
 type Row = PrioritizedCandidate;
+type PendingAction = {row: Row; action: StageAction};
 
 /**
  * Candidatos da vaga. As candidaturas vêm da página (que também mostra a
@@ -41,6 +56,9 @@ export default function CandidatesPanel({
 	reload,
 	link,
 	unlink,
+	steps,
+	advance,
+	setStatus,
 }: CandidatesPanelProps): JSX.Element {
 	const {profiles, loading: profilesLoading, error: profilesError, reload: reloadProfiles} =
 		useProfiles();
@@ -48,6 +66,8 @@ export default function CandidatesPanel({
 	const [linkKey, setLinkKey] = useState(0);
 	const [unlinkTarget, setUnlinkTarget] = useState<Row | null>(null);
 	const [unlinking, setUnlinking] = useState(false);
+	const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+	const [applying, setApplying] = useState(false);
 
 	const linkedIds = useMemo(
 		() => new Set(applications.map((application) => application.profileId)),
@@ -87,6 +107,44 @@ export default function CandidatesPanel({
 			toast.error(isApiError(err) ? err.message : GENERIC_UNLINK_ERROR);
 		} finally {
 			setUnlinking(false);
+		}
+	}
+
+	async function confirmStageAction() {
+		if (!pendingAction) return;
+		const {row, action} = pendingAction;
+		const name = row.profile?.name ?? row.application.profileName;
+		setApplying(true);
+		try {
+			if (action.kind === "advance") {
+				await advance(row.application);
+				toast.success(`${name} encaminhado(a) para ${action.to.name}`);
+			} else {
+				const status: ApplicationStatus = action.kind === "hire"
+					? "Hired"
+					: action.kind === "reject"
+						? "Rejected"
+						: "InProgress";
+				await setStatus(row.application.profileId, status);
+				toast.success(
+					action.kind === "hire"
+						? `${name} aprovado(a) no processo`
+						: action.kind === "reject"
+							? `${name} reprovado(a) no processo`
+							: `Candidatura de ${name} reaberta`,
+				);
+			}
+			setPendingAction(null);
+		} catch (err) {
+			if (isApiError(err) && err.status === 409) {
+				toast.error("O candidato mudou desde que a lista foi carregada. Confira a situação atual e tente de novo.");
+				setPendingAction(null);
+				reload();
+			} else {
+				toast.error(isApiError(err) ? err.message : GENERIC_STAGE_ERROR);
+			}
+		} finally {
+			setApplying(false);
 		}
 	}
 
@@ -161,6 +219,8 @@ export default function CandidatesPanel({
 							showBehavioralMatch={hasBehavioralCriteria}
 							showPriority={prioritization.hasCriteria}
 							canManage={canManage}
+							steps={steps}
+							onAction={(action) => setPendingAction({row, action})}
 							onUnlink={() => setUnlinkTarget(row)}
 						/>
 					))}
@@ -175,6 +235,14 @@ export default function CandidatesPanel({
 				profiles={profiles}
 				linkedIds={linkedIds}
 				onSubmit={handleLink}
+			/>
+
+			<StageActionDialog
+				pending={pendingAction}
+				jobName={jobOpening.name}
+				applying={applying}
+				onCancel={() => !applying && setPendingAction(null)}
+				onConfirm={confirmStageAction}
 			/>
 
 			<Dialog
@@ -207,12 +275,16 @@ type CandidateRowProps = {
 	showBehavioralMatch: boolean;
 	showPriority: boolean;
 	canManage: boolean;
+	steps: Step[];
+	onAction: (action: StageAction) => void;
 	onUnlink: () => void;
 };
 
-function CandidateRow({row, showMatch, showBehavioralMatch, showPriority, canManage, onUnlink}: CandidateRowProps): JSX.Element {
+function CandidateRow({row, showMatch, showBehavioralMatch, showPriority, canManage, steps, onAction, onUnlink}: CandidateRowProps): JSX.Element {
 	const {application, profile, skillMatch: match, behavioralMatch, priority} = row;
 	const name = profile?.name ?? application.profileName;
+	const displayedPriority = application.priority === undefined ? priority : application.priority;
+	const stage = applicationStage(application, steps);
 	const allRequired = match.requiredTotal > 0 && match.requiredMatched === match.requiredTotal;
 	const allRequiredBehavioral =
 		behavioralMatch.requiredTotal > 0 && behavioralMatch.requiredMatched === behavioralMatch.requiredTotal;
@@ -230,9 +302,9 @@ function CandidateRow({row, showMatch, showBehavioralMatch, showPriority, canMan
 							</Link>
 						) : name}
 					</p>
-					{showPriority && priority !== null && (
+					{showPriority && displayedPriority !== null && (
 						<Badge size="xs" variant="primary">
-							Prioridade {priority}
+							Prioridade {displayedPriority}
 						</Badge>
 					)}
 					{showMatch && match.requiredTotal > 0 && (
@@ -262,6 +334,38 @@ function CandidateRow({row, showMatch, showBehavioralMatch, showPriority, canMan
 					Vinculado em {formatDate(application.appliedAt)}
 					{!profile && " · perfil não encontrado"}
 				</p>
+				<div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+					<Badge size="xs" variant={application.status === "Hired" ? "success" : application.status === "Rejected" ? "error" : "info"}>
+						{STATUS_LABEL[application.status]}
+					</Badge>
+					<span className="text-base-content/70">
+						{stage.current
+							? `Etapa ${stage.position} de ${stage.total} · ${stage.current.name}`
+							: "Ainda não iniciou as etapas"}
+					</span>
+					{application.stageUpdatedAt !== application.appliedAt && (
+						<span className="text-base-content/50">· atualizado em {formatDate(application.stageUpdatedAt)}</span>
+					)}
+				</div>
+				{canManage && (stage.primary || stage.secondary) && (
+					<div className="mt-3 flex flex-wrap items-center gap-2">
+						{stage.primary && (
+							<Button size="sm" onClick={() => onAction(stage.primary!)}>
+								{stage.primary.kind === "advance" ? <RiArrowRightLine className="size-4" /> : <RiCheckLine className="size-4" />}
+								{actionLabel(stage.primary)}
+							</Button>
+						)}
+						{stage.secondary && (
+							<Button
+								size="sm"
+								variant={stage.secondary.kind === "reject" ? "error" : "ghost"}
+								onClick={() => onAction(stage.secondary)}>
+								{stage.secondary.kind === "reject" ? <RiCloseCircleLine className="size-4" /> : <RiArrowGoBackLine className="size-4" />}
+								{actionLabel(stage.secondary)}
+							</Button>
+						)}
+					</div>
+				)}
 				{showMatch && match.missingRequired.length > 0 && (
 					<p className="text-base-content/60 mt-1 text-xs">
 						Faltam: {match.missingRequired.join(", ")}
@@ -327,5 +431,65 @@ function CandidateRow({row, showMatch, showBehavioralMatch, showPriority, canMan
 				</button>
 			)}
 		</li>
+	);
+}
+
+function actionLabel(action: StageAction): string {
+	switch (action.kind) {
+		case "advance":
+			return action.from ? `Encaminhar para ${action.to.name}` : `Iniciar em ${action.to.name}`;
+		case "hire":
+			return "Aprovar candidato";
+		case "reject":
+			return "Reprovar";
+		case "reopen":
+			return "Reabrir candidatura";
+	}
+}
+
+function StageActionDialog({
+	pending,
+	jobName,
+	applying,
+	onCancel,
+	onConfirm,
+}: {
+	pending: PendingAction | null;
+	jobName: string;
+	applying: boolean;
+	onCancel: () => void;
+	onConfirm: () => void;
+}): JSX.Element {
+	const action = pending?.action;
+	const name = pending ? pending.row.profile?.name ?? pending.row.application.profileName : "";
+	const title = action?.kind === "advance"
+		? "Encaminhar candidato?"
+		: action?.kind === "hire"
+			? "Aprovar candidato?"
+			: action?.kind === "reject"
+				? "Reprovar candidato?"
+				: "Reabrir candidatura?";
+
+	return (
+		<Dialog
+			open={pending !== null}
+			onClose={onCancel}
+			title={title}
+			actions={
+				<>
+					<Button variant="ghost" disabled={applying} onClick={onCancel}>Cancelar</Button>
+					<Button loading={applying} onClick={onConfirm}>{action ? actionLabel(action) : "Confirmar"}</Button>
+				</>
+			}>
+			{action?.kind === "advance" ? (
+				<p><strong>{name}</strong> seguirá para <strong>{action.to.name}</strong> em <strong>{jobName}</strong>.</p>
+			) : action?.kind === "hire" ? (
+				<p><strong>{name}</strong> será aprovado(a) no processo de <strong>{jobName}</strong>.</p>
+			) : action?.kind === "reject" ? (
+				<p><strong>{name}</strong> será reprovado(a) no processo de <strong>{jobName}</strong>.</p>
+			) : (
+				<p>A candidatura de <strong>{name}</strong> será reaberta.</p>
+			)}
+		</Dialog>
 	);
 }
