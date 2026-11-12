@@ -20,7 +20,7 @@ import type {Profile} from "../../types/profile";
 import type {Step} from "../../types/step";
 import {formatDate} from "../../utils/format";
 import {prioritizeCandidates, type PrioritizedCandidate} from "../../utils/candidatePrioritization";
-import {applicationStage, STATUS_LABEL, type StageAction} from "../../utils/applicationStage";
+import {applicationStage, countByStep, STATUS_LABEL, type StageAction} from "../../utils/applicationStage";
 
 const GENERIC_UNLINK_ERROR = "Não foi possível desvincular o candidato. Tente novamente.";
 const GENERIC_STAGE_ERROR = "Não foi possível atualizar o candidato. Tente novamente.";
@@ -38,6 +38,11 @@ export type CandidatesPanelProps = {
 	advance: (application: JobApplication) => Promise<JobApplication>;
 	setStatus: (profileId: string, status: ApplicationStatus) => Promise<JobApplication>;
 };
+
+/** `"all"`, `"not-started"`, id de etapa, `"Hired"` ou `"Rejected"`. */
+type StageFilter = string;
+const ALL = "all";
+const NOT_STARTED = "not-started";
 
 type Row = PrioritizedCandidate;
 type PendingAction = {row: Row; action: StageAction};
@@ -68,6 +73,7 @@ export default function CandidatesPanel({
 	const [unlinking, setUnlinking] = useState(false);
 	const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 	const [applying, setApplying] = useState(false);
+	const [filter, setFilter] = useState<StageFilter>(ALL);
 
 	const linkedIds = useMemo(
 		() => new Set(applications.map((application) => application.profileId)),
@@ -80,7 +86,37 @@ export default function CandidatesPanel({
 		() => prioritizeCandidates(jobOpening, applications, profiles),
 		[applications, profiles, jobOpening],
 	);
-	const {rows} = prioritization;
+	// Reprovados vão para o fim, mantendo a ordem de prioridade entre os demais.
+	const rows = useMemo(
+		() => [
+			...prioritization.rows.filter((row) => row.application.status !== "Rejected"),
+			...prioritization.rows.filter((row) => row.application.status === "Rejected"),
+		],
+		[prioritization],
+	);
+
+	const orderedSteps = useMemo(() => [...steps].sort((a, b) => a.order - b.order), [steps]);
+	const funnel = useMemo(() => {
+		const counts = countByStep(applications);
+		const closed = (status: ApplicationStatus) =>
+			applications.filter((application) => application.status === status).length;
+		return [
+			{key: NOT_STARTED, label: "Não iniciado", count: counts.get(null) ?? 0},
+			...orderedSteps.map((step) => ({key: step.id, label: step.name, count: counts.get(step.id) ?? 0})),
+			{key: "Hired", label: STATUS_LABEL.Hired, count: closed("Hired")},
+			{key: "Rejected", label: STATUS_LABEL.Rejected, count: closed("Rejected")},
+		];
+	}, [applications, orderedSteps]);
+	// Se a etapa filtrada foi removida, volta para "Todos".
+	const activeFilter = filter === ALL || funnel.some((item) => item.key === filter) ? filter : ALL;
+	const visibleRows = useMemo(() => {
+		if (activeFilter === ALL) return rows;
+		return rows.filter(({application}) => {
+			if (activeFilter === "Hired" || activeFilter === "Rejected") return application.status === activeFilter;
+			if (application.status !== "InProgress") return false;
+			return (application.currentStep?.id ?? NOT_STARTED) === activeFilter;
+		});
+	}, [rows, activeFilter]);
 
 	function openLink() {
 		setLinkKey((key) => key + 1);
@@ -164,8 +200,8 @@ export default function CandidatesPanel({
 					{rows.length > 0 && (
 						<p className="text-base-content/60 mt-1 text-sm">
 							{prioritization.hasCriteria
-								? "Ordem: competências obrigatórias, critérios comportamentais obrigatórios, competências desejáveis e critérios comportamentais desejáveis; empates pela candidatura mais recente."
-								: "A vaga não tem critérios de avaliação; candidatos em ordem de inscrição."}
+								? "Ordem: competências obrigatórias, critérios comportamentais obrigatórios, competências desejáveis e critérios comportamentais desejáveis; empates pela candidatura mais recente. Reprovados ficam no fim."
+								: "A vaga não tem critérios de avaliação; candidatos em ordem de inscrição, reprovados no fim."}
 						</p>
 					)}
 				</div>
@@ -210,21 +246,43 @@ export default function CandidatesPanel({
 					</div>
 				</div>
 			) : (
-				<ul className="border-base-300 divide-base-300 rounded-box divide-y border">
-					{rows.map((row) => (
-						<CandidateRow
-							key={row.application.profileId}
-							row={row}
-							showMatch={hasJobSkills}
-							showBehavioralMatch={hasBehavioralCriteria}
-							showPriority={prioritization.hasCriteria}
-							canManage={canManage}
-							steps={steps}
-							onAction={(action) => setPendingAction({row, action})}
-							onUnlink={() => setUnlinkTarget(row)}
-						/>
-					))}
-				</ul>
+				<>
+					<StageFunnel
+						items={funnel}
+						total={rows.length}
+						active={activeFilter}
+						onSelect={(key) => setFilter((current) => (current === key ? ALL : key))}
+					/>
+					{orderedSteps.length === 0 && canManage && (
+						<p className="text-base-content/60 text-sm">
+							Cadastre as etapas da vaga para encaminhar os candidatos no processo.
+						</p>
+					)}
+					{visibleRows.length === 0 ? (
+						<div className="border-base-300 rounded-box flex flex-col items-center gap-2 border border-dashed px-4 py-8 text-center">
+							<p className="text-sm font-medium">Nenhum candidato neste filtro</p>
+							<Button size="xs" variant="ghost" onClick={() => setFilter(ALL)}>
+								Mostrar todos
+							</Button>
+						</div>
+					) : (
+						<ul className="border-base-300 divide-base-300 rounded-box divide-y border">
+							{visibleRows.map((row) => (
+								<CandidateRow
+									key={row.application.profileId}
+									row={row}
+									showMatch={hasJobSkills}
+									showBehavioralMatch={hasBehavioralCriteria}
+									showPriority={prioritization.hasCriteria}
+									canManage={canManage}
+									steps={steps}
+									onAction={(action) => setPendingAction({row, action})}
+									onUnlink={() => setUnlinkTarget(row)}
+								/>
+							))}
+						</ul>
+					)}
+				</>
 			)}
 
 			<LinkCandidatesDialog
@@ -447,6 +505,50 @@ function actionLabel(action: StageAction): string {
 	}
 }
 
+type FunnelItem = {key: string; label: string; count: number};
+
+/** Contagem por etapa; clicar filtra a lista (clicar de novo limpa). */
+function StageFunnel({
+	items,
+	total,
+	active,
+	onSelect,
+}: {
+	items: FunnelItem[];
+	total: number;
+	active: StageFilter;
+	onSelect: (key: StageFilter) => void;
+}): JSX.Element {
+	const chip = (key: string, label: string, count: number) => {
+		const selected = active === key;
+		return (
+			<li key={key}>
+				<button
+					type="button"
+					aria-pressed={selected}
+					onClick={() => onSelect(key)}
+					className={`rounded-field flex items-center gap-1.5 border px-2.5 py-1 text-xs transition-colors ${
+						selected
+							? "border-primary bg-primary/8 text-primary"
+							: "border-base-300 text-base-content/70 hover:border-base-content/30"
+					}`}>
+					<span className="max-w-40 truncate">{label}</span>
+					<span className="font-semibold tabular-nums">{count}</span>
+				</button>
+			</li>
+		);
+	};
+
+	return (
+		<nav aria-label="Candidatos por etapa">
+			<ul className="flex flex-wrap items-center gap-1.5">
+				{chip(ALL, "Todos", total)}
+				{items.map((item) => chip(item.key, item.label, item.count))}
+			</ul>
+		</nav>
+	);
+}
+
 function StageActionDialog({
 	pending,
 	jobName,
@@ -461,14 +563,25 @@ function StageActionDialog({
 	onConfirm: () => void;
 }): JSX.Element {
 	const action = pending?.action;
-	const name = pending ? pending.row.profile?.name ?? pending.row.application.profileName : "";
-	const title = action?.kind === "advance"
-		? "Encaminhar candidato?"
-		: action?.kind === "hire"
-			? "Aprovar candidato?"
-			: action?.kind === "reject"
-				? "Reprovar candidato?"
-				: "Reabrir candidatura?";
+	const name = pending ? (pending.row.profile?.name ?? pending.row.application.profileName) : "";
+
+	const title =
+		action?.kind === "advance"
+			? "Encaminhar candidato?"
+			: action?.kind === "hire"
+				? "Aprovar candidato?"
+				: action?.kind === "reject"
+					? "Reprovar candidato?"
+					: "Reabrir candidatura?";
+
+	const confirmLabel =
+		action?.kind === "advance"
+			? "Encaminhar"
+			: action?.kind === "hire"
+				? "Aprovar"
+				: action?.kind === "reject"
+					? "Reprovar"
+					: "Reabrir";
 
 	return (
 		<Dialog
@@ -477,18 +590,46 @@ function StageActionDialog({
 			title={title}
 			actions={
 				<>
-					<Button variant="ghost" disabled={applying} onClick={onCancel}>Cancelar</Button>
-					<Button loading={applying} onClick={onConfirm}>{action ? actionLabel(action) : "Confirmar"}</Button>
+					<Button variant="ghost" disabled={applying} onClick={onCancel}>
+						Cancelar
+					</Button>
+					<Button
+						variant={action?.kind === "reject" ? "error" : action?.kind === "hire" ? "success" : "primary"}
+						loading={applying}
+						onClick={onConfirm}>
+						{confirmLabel}
+					</Button>
 				</>
 			}>
-			{action?.kind === "advance" ? (
-				<p><strong>{name}</strong> seguirá para <strong>{action.to.name}</strong> em <strong>{jobName}</strong>.</p>
-			) : action?.kind === "hire" ? (
-				<p><strong>{name}</strong> será aprovado(a) no processo de <strong>{jobName}</strong>.</p>
-			) : action?.kind === "reject" ? (
-				<p><strong>{name}</strong> será reprovado(a) no processo de <strong>{jobName}</strong>.</p>
-			) : (
-				<p>A candidatura de <strong>{name}</strong> será reaberta.</p>
+			{action?.kind === "advance" && (
+				<div className="space-y-3">
+					<p>
+						<strong>{name}</strong> passará para a próxima etapa da vaga <strong>{jobName}</strong>.
+					</p>
+					<div className="bg-base-200 rounded-field flex flex-wrap items-center gap-2 px-3 py-2.5 text-sm">
+						<span className="text-base-content/70">{action.from?.name ?? "Não iniciado"}</span>
+						<RiArrowRightLine className="text-base-content/50 size-4" aria-hidden />
+						<span className="font-medium">{action.to.name}</span>
+					</div>
+				</div>
+			)}
+			{action?.kind === "hire" && (
+				<p>
+					<strong>{name}</strong> concluiu a última etapa ({action.at.name}) e será marcado(a) como
+					aprovado(a) na vaga <strong>{jobName}</strong>.
+				</p>
+			)}
+			{action?.kind === "reject" && (
+				<p>
+					<strong>{name}</strong> deixará de avançar na vaga <strong>{jobName}</strong>. A etapa atual
+					fica registrada e a candidatura pode ser reaberta depois.
+				</p>
+			)}
+			{action?.kind === "reopen" && (
+				<p>
+					A candidatura de <strong>{name}</strong> volta para <em>Em andamento</em>, na mesma etapa em
+					que estava.
+				</p>
 			)}
 		</Dialog>
 	);
