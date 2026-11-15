@@ -11,6 +11,7 @@ import Login from "../pages/Login";
 import NotFound from "../pages/NotFound";
 import ProfileDetail from "../pages/ProfileDetail";
 import Skills from "../pages/Skills";
+import TalentPool from "../pages/TalentPool";
 import UiPlayground from "../pages/UiPlayground";
 import Users from "../pages/Users";
 import {Spinner} from "../components/ui";
@@ -48,6 +49,7 @@ export default function AppRoutes(): JSX.Element {
 				<Route path="/vagas" element={<JobOpenings />} />
 				<Route path="/vagas/:id" element={<JobOpeningDetail />} />
 				<Route path="/competencias" element={<Skills />} />
+				<Route path="/banco-de-talentos" element={<TalentPool />} />
 			</Route>
 
 			<Route path="*" element={<NotFound />} />

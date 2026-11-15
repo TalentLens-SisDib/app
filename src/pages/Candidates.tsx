@@ -1,9 +1,18 @@
 import {useMemo, useState, type JSX} from "react";
 import {Link} from "react-router-dom";
-import {RiCalendarLine, RiLinkedinLine, RiMedalLine, RiSearchLine, RiTeamLine, RiUploadCloud2Line} from "@remixicon/react";
+import {
+	RiCalendarLine,
+	RiLinkedinLine,
+	RiMedalLine,
+	RiSearchLine,
+	RiStarFill,
+	RiTeamLine,
+	RiUploadCloud2Line,
+} from "@remixicon/react";
 import PageHeader from "../components/layout/PageHeader";
 import {
 	Avatar,
+	Badge,
 	CardGridSkeleton,
 	EmptyState,
 	ErrorState,
@@ -12,6 +21,7 @@ import {
 	TagList,
 } from "../components/ui";
 import {useProfiles} from "../hooks/useProfiles";
+import {useTalentPool} from "../hooks/useTalentPool";
 import type {Profile} from "../types/profile";
 import {formatDate} from "../utils/format";
 
@@ -29,6 +39,9 @@ function latestEducation(profile: Profile): string | null {
 export default function Candidates(): JSX.Element {
 	const {profiles, loading, error, reload} = useProfiles();
 	const [search, setSearch] = useState("");
+	// Só para o selo "Banco de talentos"; se falhar, a lista segue sem ele.
+	const {entries: talentPool} = useTalentPool();
+	const inTalentPool = useMemo(() => new Set(talentPool.map((entry) => entry.profileId)), [talentPool]);
 
 	const sorted = useMemo(
 		() => [...profiles].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
@@ -94,7 +107,7 @@ export default function Candidates(): JSX.Element {
 			) : profiles.length === 0 ? (
 				<EmptyState
 					icon={<RiTeamLine className="size-5" />}
-					title="Nenhum candidato no banco de talentos"
+					title="Nenhum candidato cadastrado"
 					description="Importe currículos para criar os perfis estruturados dos candidatos."
 					action={importAction}
 				/>
@@ -132,6 +145,12 @@ export default function Candidates(): JSX.Element {
 											{education ?? "Formação não informada"}
 										</p>
 									</div>
+									{inTalentPool.has(profile.id) && (
+										<Badge size="xs" variant="warning" className="ml-auto shrink-0">
+											<RiStarFill className="size-3" aria-hidden />
+											Banco de talentos
+										</Badge>
+									)}
 								</div>
 
 								<p className="text-base-content/65 mt-3 line-clamp-2 text-sm leading-5">
