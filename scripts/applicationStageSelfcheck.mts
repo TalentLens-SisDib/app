@@ -15,6 +15,7 @@ const app = (current: string | null, status: JobApplication["status"] = "InProgr
 	jobOpeningId: "job",
 	appliedAt: "2026-11-01T00:00:00.000Z",
 	stageUpdatedAt: "2026-11-01T00:00:00.000Z",
+	closure: null,
 	status,
 	currentStep: current ? {id: current, name: current, order: 0} : null,
 });
