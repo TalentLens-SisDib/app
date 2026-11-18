@@ -79,8 +79,8 @@ function interviewDates(profiles: Profile[]): string[] {
 }
 
 /**
- * `GET /profiles` não filtra por empresa, mas `GET /job-openings` sim: só contam
- * candidaturas para vagas que o usuário enxerga.
+ * `GET /profiles` e `GET /job-openings` já vêm filtrados pela empresa; ainda assim
+ * só contam candidaturas para vagas que o usuário enxerga.
  */
 function visibleApplications(profile: Profile, jobIds: Set<string>) {
 	return (profile.applications ?? []).filter((application) => jobIds.has(application.jobOpeningId));
