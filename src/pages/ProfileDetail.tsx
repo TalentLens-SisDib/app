@@ -104,6 +104,11 @@ export default function ProfileDetail(): JSX.Element {
 		<>
 			<PageHeader
 				title={profile.name}
+				description={
+					profile.createdBy?.name
+						? `Cadastrado em ${formatDateTime(profile.createdAt)} por ${profile.createdBy.name}`
+						: `Cadastrado em ${formatDateTime(profile.createdAt)}`
+				}
 				breadcrumbs={[
 					{label: "Dashboard", href: "/"},
 					{label: "Candidatos", href: "/candidatos"},

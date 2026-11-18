@@ -77,6 +77,10 @@ export type Profile = {
 	/** Evidências avaliadas por competência, disponíveis após a implementação da API. */
 	competencyEvidence?: CompetencyEvidence[];
 	applications?: ProfileApplication[];
+	/** Empresa dona do cadastro; a API só devolve candidatos da empresa de quem está logado. */
+	companyId?: number;
+	/** Recrutador que cadastrou o candidato; `null` em cadastros anteriores a esse registro. */
+	createdBy?: {id: number; name: string} | null;
 	/** Avisos de consistência gerados apenas durante a importação do currículo. */
 	qualityIssues?: string[];
 	createdAt: string;
