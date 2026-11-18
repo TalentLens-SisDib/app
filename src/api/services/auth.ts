@@ -30,6 +30,7 @@ type AccessTokenClaims = {
 	email: string;
 	role: UserRole;
 	companyId: number;
+	companyName?: string;
 };
 
 function decodeAccessToken(token: string): AccessTokenClaims {
@@ -52,6 +53,7 @@ function userFromAccessToken(token: string): User {
 		email: claims.email,
 		role: claims.role,
 		companyId: claims.companyId,
+		companyName: claims.companyName,
 	};
 }
 

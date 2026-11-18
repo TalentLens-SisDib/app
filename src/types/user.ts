@@ -6,6 +6,8 @@ export type User = {
 	email: string;
 	role: UserRole;
 	companyId: number;
+	/** Ausente em sessões cujo token foi emitido antes de a API incluir a empresa. */
+	companyName?: string;
 };
 
 export type CreateUserInput = {

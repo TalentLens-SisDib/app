@@ -1,6 +1,7 @@
 import type {JSX} from "react";
 import {
 	RiArrowDownSLine,
+	RiBuilding2Line,
 	RiLayoutLeftLine,
 	RiLogoutBoxRLine,
 	RiNotification3Line,
@@ -65,8 +66,9 @@ export default function Navbar(): JSX.Element {
 							{user && (
 								<span className="hidden min-w-0 text-left md:block">
 									<span className="block max-w-36 truncate text-sm leading-5 font-medium">{user.name}</span>
-									<span className="text-base-content/55 block text-xs leading-4">
+									<span className="text-base-content/55 block max-w-36 truncate text-xs leading-4">
 										{ROLE_LABEL[user.role] ?? user.role}
+										{user.companyName && ` · ${user.companyName}`}
 									</span>
 								</span>
 							)}
@@ -83,6 +85,12 @@ export default function Navbar(): JSX.Element {
 									<span className="text-base-content/60 block truncate text-xs font-normal normal-case">
 										{user.email}
 									</span>
+									{user.companyName && (
+										<span className="text-base-content/60 mt-1.5 flex items-center gap-1.5 text-xs font-normal normal-case">
+											<RiBuilding2Line className="size-3.5 shrink-0" aria-hidden />
+											<span className="truncate">{user.companyName}</span>
+										</span>
+									)}
 								</li>
 							)}
 							<li>
