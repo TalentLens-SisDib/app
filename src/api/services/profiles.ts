@@ -1,5 +1,5 @@
 import {apiClient} from "../client";
-import type {Profile, UpdateProfileInput} from "../../types/profile";
+import type {CreateProfileInput, Profile, UpdateProfileInput} from "../../types/profile";
 
 export function getProfiles(): Promise<Profile[]> {
 	return apiClient.get<Profile[]>("/profiles");
@@ -7,6 +7,11 @@ export function getProfiles(): Promise<Profile[]> {
 
 export function getProfile(id: string, signal?: AbortSignal): Promise<Profile> {
 	return apiClient.get<Profile>(`/profiles/${id}`, {signal});
+}
+
+/** Cadastra um candidato manualmente, sem currículo ou LinkedIn. */
+export function createProfile(data: CreateProfileInput): Promise<Profile> {
+	return apiClient.post<Profile>("/profiles", data);
 }
 
 export function updateProfile(id: string, data: UpdateProfileInput): Promise<Profile> {

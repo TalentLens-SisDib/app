@@ -2,7 +2,7 @@ import {useState, type JSX, type SubmitEvent} from "react";
 import {RiAddLine, RiDeleteBinLine} from "@remixicon/react";
 import {Alert, Button, Input, TagInput, Textarea} from "../ui";
 import {isApiError} from "../../api/errors";
-import type {Profile, UpdateProfileInput} from "../../types/profile";
+import type {CreateProfileInput, Profile} from "../../types/profile";
 
 type EducationDraft = {
 	key: string;
@@ -13,24 +13,31 @@ type EducationDraft = {
 };
 
 export type ProfileEditorProps = {
-	profile: Profile;
+	/** Perfil a editar; sem ele o formulário começa vazio para um cadastro novo. */
+	profile?: Profile;
+	submitLabel?: string;
 	onCancel: () => void;
-	onSubmit: (data: UpdateProfileInput) => Promise<void>;
+	onSubmit: (data: CreateProfileInput) => Promise<void>;
 };
 
 function dateInputValue(value: string | null | undefined): string {
 	return value?.slice(0, 10) ?? "";
 }
 
-export default function ProfileEditor({profile, onCancel, onSubmit}: ProfileEditorProps): JSX.Element {
-	const [name, setName] = useState(profile.name);
-	const [description, setDescription] = useState(profile.description ?? "");
-	const [skills, setSkills] = useState(profile.skills?.map((skill) => skill.skillName) ?? []);
+export default function ProfileEditor({
+	profile,
+	submitLabel = "Salvar perfil",
+	onCancel,
+	onSubmit,
+}: ProfileEditorProps): JSX.Element {
+	const [name, setName] = useState(profile?.name ?? "");
+	const [description, setDescription] = useState(profile?.description ?? "");
+	const [skills, setSkills] = useState(profile?.skills?.map((skill) => skill.skillName) ?? []);
 	const [culturalFits, setCulturalFits] = useState(
-		profile.culturalFits?.map((fit) => fit.culturalFitName) ?? [],
+		profile?.culturalFits?.map((fit) => fit.culturalFitName) ?? [],
 	);
 	const [education, setEducation] = useState<EducationDraft[]>(
-		(profile.educationalBackground ?? []).map((item) => ({
+		(profile?.educationalBackground ?? []).map((item) => ({
 			key: item.id,
 			institution: item.institution,
 			degree: item.degree,
@@ -84,7 +91,7 @@ export default function ProfileEditor({profile, onCancel, onSubmit}: ProfileEdit
 			return;
 		}
 
-		const payload: UpdateProfileInput = {
+		const payload: CreateProfileInput = {
 			name: name.trim(),
 			description: description.trim(),
 			skills,
@@ -213,7 +220,7 @@ export default function ProfileEditor({profile, onCancel, onSubmit}: ProfileEdit
 
 			<div className="flex flex-col-reverse gap-2 border-t border-base-300 pt-4 sm:flex-row sm:justify-end">
 				<Button variant="ghost" disabled={submitting} onClick={onCancel}>Cancelar</Button>
-				<Button type="submit" loading={submitting}>Salvar perfil</Button>
+				<Button type="submit" loading={submitting}>{submitLabel}</Button>
 			</div>
 		</form>
 	);

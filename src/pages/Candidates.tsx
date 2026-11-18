@@ -8,6 +8,7 @@ import {
 	RiStarFill,
 	RiTeamLine,
 	RiUploadCloud2Line,
+	RiUserAddLine,
 } from "@remixicon/react";
 import PageHeader from "../components/layout/PageHeader";
 import {
@@ -75,6 +76,10 @@ export default function Candidates(): JSX.Element {
 				]}
 				actions={
 					<>
+						<Link to="/candidatos/novo" className="btn btn-outline btn-sm">
+							<RiUserAddLine className="size-4" />
+							Cadastrar manualmente
+						</Link>
 						<Link to="/candidatos/importar-linkedin" className="btn btn-outline btn-sm">
 							<RiLinkedinLine className="size-4" />
 							Importar do LinkedIn
