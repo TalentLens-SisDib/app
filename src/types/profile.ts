@@ -1,4 +1,5 @@
 import type {CompetencyEvidence} from "./competencyEvidence";
+import type {ApplicationClosure} from "./application";
 
 /** Competência vinculada a um perfil, como a API a devolve. */
 export type ProfileSkill = {
@@ -44,6 +45,7 @@ export type ProfileApplication = {
 	profileId: string;
 	jobOpeningId: string;
 	appliedAt: string;
+	closure?: ApplicationClosure | null;
 };
 
 export type UpdateProfileInput = {
