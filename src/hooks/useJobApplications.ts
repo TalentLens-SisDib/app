@@ -7,7 +7,7 @@ import {
 	getApplications,
 	updateApplicationStatus,
 } from "../api/services/applications";
-import type {ApplicationStatus, JobApplication} from "../types/application";
+import type {JobApplication, UpdateApplicationStatusInput} from "../types/application";
 
 const GENERIC_ERROR = "Não foi possível carregar os candidatos da vaga.";
 
@@ -89,8 +89,8 @@ export function useJobApplications(jobOpeningId: string) {
 	);
 
 	const setStatus = useCallback(
-		async (profileId: string, status: ApplicationStatus) => {
-			const updated = await updateApplicationStatus(jobOpeningId, profileId, {status});
+		async (profileId: string, data: UpdateApplicationStatusInput) => {
+			const updated = await updateApplicationStatus(jobOpeningId, profileId, data);
 			replace(updated);
 			return updated;
 		},

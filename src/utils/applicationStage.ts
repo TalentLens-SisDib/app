@@ -4,7 +4,7 @@ import type {Step} from "../types/step";
 export const STATUS_LABEL: Record<ApplicationStatus, string> = {
 	InProgress: "Em andamento",
 	Hired: "Aprovado",
-	Rejected: "Reprovado",
+	Rejected: "Encerrado",
 };
 
 /** O que o recrutador pode fazer a seguir com o candidato. */
@@ -16,7 +16,7 @@ export type StageAction =
 
 /**
  * Mesma regra que a API aplica: avança uma etapa por vez pela `order`;
- * aprovar só na última; reprovar a qualquer momento em andamento; reabrir
+ * aprovar só na última; encerrar a qualquer momento em andamento; reabrir
  * mantém a etapa em que o candidato estava.
  */
 export function applicationStage(application: JobApplication, steps: Step[]) {

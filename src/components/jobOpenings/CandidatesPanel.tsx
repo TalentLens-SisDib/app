@@ -9,18 +9,26 @@ import {
 	RiTeamLine,
 	RiUserAddLine,
 } from "@remixicon/react";
-import {Alert, Avatar, Badge, Button, Dialog, Spinner} from "../ui";
+import {Alert, Avatar, Badge, Button, Dialog, Select, Spinner, Textarea} from "../ui";
 import {toast} from "../ui/toastStore";
 import LinkCandidatesDialog from "./LinkCandidatesDialog";
 import {isApiError} from "../../api/errors";
 import {useProfiles} from "../../hooks/useProfiles";
-import type {ApplicationStatus, JobApplication} from "../../types/application";
+import type {ApplicationStatus, JobApplication, UpdateApplicationStatusInput} from "../../types/application";
 import type {JobOpening} from "../../types/jobOpening";
 import type {Profile} from "../../types/profile";
 import type {Step} from "../../types/step";
 import {formatDate} from "../../utils/format";
 import {prioritizeCandidates, type PrioritizedCandidate} from "../../utils/candidatePrioritization";
 import {applicationStage, countByStep, STATUS_LABEL, type StageAction} from "../../utils/applicationStage";
+import {
+	CLOSURE_NOTES_MAX,
+	CLOSURE_REASON_LABEL,
+	CLOSURE_REASONS,
+	validateClosureForm,
+	type ClosureForm,
+	type ClosureFormErrors,
+} from "../../utils/applicationClosure";
 
 const GENERIC_UNLINK_ERROR = "Não foi possível desvincular o candidato. Tente novamente.";
 const GENERIC_STAGE_ERROR = "Não foi possível atualizar o candidato. Tente novamente.";
@@ -36,7 +44,7 @@ export type CandidatesPanelProps = {
 	unlink: (profileId: string) => Promise<void>;
 	steps: Step[];
 	advance: (application: JobApplication) => Promise<JobApplication>;
-	setStatus: (profileId: string, status: ApplicationStatus) => Promise<JobApplication>;
+	setStatus: (profileId: string, data: UpdateApplicationStatusInput) => Promise<JobApplication>;
 };
 
 /** `"all"`, `"not-started"`, id de etapa, `"Hired"` ou `"Rejected"`. */
@@ -46,6 +54,8 @@ const NOT_STARTED = "not-started";
 
 type Row = PrioritizedCandidate;
 type PendingAction = {row: Row; action: StageAction};
+
+const EMPTY_CLOSURE_FORM: ClosureForm = {reason: "", notes: ""};
 
 /**
  * Candidatos da vaga. As candidaturas vêm da página (que também mostra a
@@ -73,6 +83,8 @@ export default function CandidatesPanel({
 	const [unlinking, setUnlinking] = useState(false);
 	const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 	const [applying, setApplying] = useState(false);
+	const [closureForm, setClosureForm] = useState<ClosureForm>(EMPTY_CLOSURE_FORM);
+	const [closureErrors, setClosureErrors] = useState<ClosureFormErrors>({});
 	const [filter, setFilter] = useState<StageFilter>(ALL);
 
 	const linkedIds = useMemo(
@@ -86,7 +98,7 @@ export default function CandidatesPanel({
 		() => prioritizeCandidates(jobOpening, applications, profiles),
 		[applications, profiles, jobOpening],
 	);
-	// Reprovados vão para o fim, mantendo a ordem de prioridade entre os demais.
+	// Encerrados vão para o fim, mantendo a ordem de prioridade entre os demais.
 	const rows = useMemo(
 		() => [
 			...prioritization.rows.filter((row) => row.application.status !== "Rejected"),
@@ -146,29 +158,51 @@ export default function CandidatesPanel({
 		}
 	}
 
+	function openStageAction(row: Row, action: StageAction) {
+		setClosureForm(EMPTY_CLOSURE_FORM);
+		setClosureErrors({});
+		setPendingAction({row, action});
+	}
+
+	function changeClosureForm(patch: Partial<ClosureForm>) {
+		setClosureForm((current) => ({...current, ...patch}));
+		// Limpa o erro do campo editado; os demais continuam até o próximo envio.
+		setClosureErrors((current) => {
+			const next = {...current};
+			for (const key of Object.keys(patch) as (keyof ClosureForm)[]) delete next[key];
+			// Trocar o motivo pode tornar as observações (des)obrigatórias.
+			if ("reason" in patch) delete next.notes;
+			return next;
+		});
+	}
+
 	async function confirmStageAction() {
 		if (!pendingAction) return;
 		const {row, action} = pendingAction;
 		const name = row.profile?.name ?? row.application.profileName;
+
+		let closureData: UpdateApplicationStatusInput | null = null;
+		if (action.kind === "reject") {
+			const result = validateClosureForm(closureForm);
+			if (!result.ok) {
+				setClosureErrors(result.errors);
+				return;
+			}
+			closureData = {status: "Rejected", closure: result.closure};
+		}
+
 		setApplying(true);
 		try {
 			if (action.kind === "advance") {
 				await advance(row.application);
 				toast.success(`${name} encaminhado(a) para ${action.to.name}`);
+			} else if (closureData) {
+				await setStatus(row.application.profileId, closureData);
+				toast.success(`Avaliação de ${name} encerrada`);
 			} else {
-				const status: ApplicationStatus = action.kind === "hire"
-					? "Hired"
-					: action.kind === "reject"
-						? "Rejected"
-						: "InProgress";
-				await setStatus(row.application.profileId, status);
-				toast.success(
-					action.kind === "hire"
-						? `${name} aprovado(a) no processo`
-						: action.kind === "reject"
-							? `${name} reprovado(a) no processo`
-							: `Candidatura de ${name} reaberta`,
-				);
+				const hire = action.kind === "hire";
+				await setStatus(row.application.profileId, {status: hire ? "Hired" : "InProgress"});
+				toast.success(hire ? `${name} aprovado(a) no processo` : `Candidatura de ${name} reaberta`);
 			}
 			setPendingAction(null);
 		} catch (err) {
@@ -200,8 +234,8 @@ export default function CandidatesPanel({
 					{rows.length > 0 && (
 						<p className="text-base-content/60 mt-1 text-sm">
 							{prioritization.hasCriteria
-								? "Ordem: competências obrigatórias, critérios comportamentais obrigatórios, competências desejáveis e critérios comportamentais desejáveis; empates pela candidatura mais recente. Reprovados ficam no fim."
-								: "A vaga não tem critérios de avaliação; candidatos em ordem de inscrição, reprovados no fim."}
+								? "Ordem: competências obrigatórias, critérios comportamentais obrigatórios, competências desejáveis e critérios comportamentais desejáveis; empates pela candidatura mais recente. Encerrados ficam no fim."
+								: "A vaga não tem critérios de avaliação; candidatos em ordem de inscrição, encerrados no fim."}
 						</p>
 					)}
 				</div>
@@ -276,7 +310,7 @@ export default function CandidatesPanel({
 									showPriority={prioritization.hasCriteria}
 									canManage={canManage}
 									steps={steps}
-									onAction={(action) => setPendingAction({row, action})}
+									onAction={(action) => openStageAction(row, action)}
 									onUnlink={() => setUnlinkTarget(row)}
 								/>
 							))}
@@ -299,6 +333,9 @@ export default function CandidatesPanel({
 				pending={pendingAction}
 				jobName={jobOpening.name}
 				applying={applying}
+				closureForm={closureForm}
+				closureErrors={closureErrors}
+				onClosureChange={changeClosureForm}
 				onCancel={() => !applying && setPendingAction(null)}
 				onConfirm={confirmStageAction}
 			/>
@@ -405,6 +442,9 @@ function CandidateRow({row, showMatch, showBehavioralMatch, showPriority, canMan
 						<span className="text-base-content/50">· atualizado em {formatDate(application.stageUpdatedAt)}</span>
 					)}
 				</div>
+				{application.status === "Rejected" && application.closure && (
+					<ClosureSummary closure={application.closure} />
+				)}
 				{canManage && (stage.primary || stage.secondary) && (
 					<div className="mt-3 flex flex-wrap items-center gap-2">
 						{stage.primary && (
@@ -499,7 +539,7 @@ function actionLabel(action: StageAction): string {
 		case "hire":
 			return "Aprovar candidato";
 		case "reject":
-			return "Reprovar";
+			return "Encerrar avaliação";
 		case "reopen":
 			return "Reabrir candidatura";
 	}
@@ -549,16 +589,38 @@ function StageFunnel({
 	);
 }
 
+function ClosureSummary({closure}: {closure: NonNullable<JobApplication["closure"]>}): JSX.Element {
+	return (
+		<div className="bg-base-200 rounded-field mt-2 px-3 py-2 text-xs">
+			<p>
+				<span className="text-base-content/60">Motivo: </span>
+				<span className="font-medium">{CLOSURE_REASON_LABEL[closure.reason] ?? closure.reason}</span>
+			</p>
+			{closure.notes && <p className="text-base-content/80 mt-1 break-words whitespace-pre-line">{closure.notes}</p>}
+			<p className="text-base-content/50 mt-1">
+				Encerrada em {formatDate(closure.closedAt)}
+				{closure.closedBy?.name && ` por ${closure.closedBy.name}`}
+			</p>
+		</div>
+	);
+}
+
 function StageActionDialog({
 	pending,
 	jobName,
 	applying,
+	closureForm,
+	closureErrors,
+	onClosureChange,
 	onCancel,
 	onConfirm,
 }: {
 	pending: PendingAction | null;
 	jobName: string;
 	applying: boolean;
+	closureForm: ClosureForm;
+	closureErrors: ClosureFormErrors;
+	onClosureChange: (patch: Partial<ClosureForm>) => void;
 	onCancel: () => void;
 	onConfirm: () => void;
 }): JSX.Element {
@@ -571,7 +633,7 @@ function StageActionDialog({
 			: action?.kind === "hire"
 				? "Aprovar candidato?"
 				: action?.kind === "reject"
-					? "Reprovar candidato?"
+					? "Encerrar avaliação?"
 					: "Reabrir candidatura?";
 
 	const confirmLabel =
@@ -580,7 +642,7 @@ function StageActionDialog({
 			: action?.kind === "hire"
 				? "Aprovar"
 				: action?.kind === "reject"
-					? "Reprovar"
+					? "Encerrar avaliação"
 					: "Reabrir";
 
 	return (
@@ -620,15 +682,54 @@ function StageActionDialog({
 				</p>
 			)}
 			{action?.kind === "reject" && (
-				<p>
-					<strong>{name}</strong> deixará de avançar na vaga <strong>{jobName}</strong>. A etapa atual
-					fica registrada e a candidatura pode ser reaberta depois.
-				</p>
+				<form
+					noValidate
+					className="space-y-4"
+					onSubmit={(event) => {
+						event.preventDefault();
+						if (!applying) onConfirm();
+					}}>
+					<p>
+						<strong>{name}</strong> deixará de avançar na vaga <strong>{jobName}</strong>. A etapa atual
+						e o motivo ficam registrados, e a candidatura pode ser reaberta depois.
+					</p>
+					<Select
+						label="Motivo do encerramento"
+						required
+						value={closureForm.reason}
+						error={closureErrors.reason}
+						disabled={applying}
+						onChange={(event) => onClosureChange({reason: event.target.value as ClosureForm["reason"]})}>
+						<option value="" disabled>
+							Selecione um motivo
+						</option>
+						{CLOSURE_REASONS.map((reason) => (
+							<option key={reason} value={reason}>
+								{CLOSURE_REASON_LABEL[reason]}
+							</option>
+						))}
+					</Select>
+					<Textarea
+						label="Observações"
+						required={closureForm.reason === "Other"}
+						rows={4}
+						maxLength={CLOSURE_NOTES_MAX}
+						value={closureForm.notes}
+						error={closureErrors.notes}
+						disabled={applying}
+						placeholder="Detalhes que ajudem a equipe a entender a decisão"
+						helperText={`${closureForm.notes.length}/${CLOSURE_NOTES_MAX} caracteres${
+							closureForm.reason === "Other" ? "" : " · opcional"
+						}`}
+						onChange={(event) => onClosureChange({notes: event.target.value})}
+					/>
+				</form>
 			)}
 			{action?.kind === "reopen" && (
 				<p>
 					A candidatura de <strong>{name}</strong> volta para <em>Em andamento</em>, na mesma etapa em
 					que estava.
+					{pending?.row.application.closure && " O motivo do encerramento registrado será removido."}
 				</p>
 			)}
 		</Dialog>

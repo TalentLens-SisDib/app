@@ -13,6 +13,7 @@ function normalizeApplication(application: JobApplicationResponse): JobApplicati
 		currentStep: application.currentStep ?? null,
 		status: application.status ?? "InProgress",
 		stageUpdatedAt: application.stageUpdatedAt ?? application.appliedAt,
+		closure: application.closure ?? null,
 	};
 }
 
