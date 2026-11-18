@@ -48,6 +48,15 @@ export type ProfileApplication = {
 	closure?: ApplicationClosure | null;
 };
 
+/** Payload de `POST /profiles` para cadastrar um candidato manualmente. */
+export type CreateProfileInput = {
+	name: string;
+	description?: string;
+	skills?: string[];
+	culturalFits?: string[];
+	educationalBackground?: ProfileEducationInput[];
+};
+
 export type UpdateProfileInput = {
 	name?: string;
 	description?: string;

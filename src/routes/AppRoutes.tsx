@@ -3,6 +3,7 @@ import {Route, Routes} from "react-router-dom";
 import AppLayout from "../components/layout/AppLayout";
 import AuthLayout from "../components/layout/AuthLayout";
 import Candidates from "../pages/Candidates";
+import CreateCandidate from "../pages/CreateCandidate";
 import ImportLinkedIn from "../pages/ImportLinkedIn";
 import ImportResumes from "../pages/ImportResumes";
 import JobOpeningDetail from "../pages/JobOpeningDetail";
@@ -41,6 +42,7 @@ export default function AppRoutes(): JSX.Element {
 					}
 				/>
 				<Route path="/candidatos" element={<Candidates />} />
+				<Route path="/candidatos/novo" element={<CreateCandidate />} />
 				<Route path="/candidatos/importar" element={<ImportResumes />} />
 				<Route path="/candidatos/importar-linkedin" element={<ImportLinkedIn />} />
 				<Route path="/candidatos/:id" element={<ProfileDetail />} />
