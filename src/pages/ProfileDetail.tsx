@@ -5,6 +5,7 @@ import PageHeader from "../components/layout/PageHeader";
 import AdaptationPanel from "../components/profiles/AdaptationPanel";
 import CompetencyEvidencePanel from "../components/profiles/CompetencyEvidencePanel";
 import ProfileEditor from "../components/profiles/ProfileEditor";
+import ProfileTalentPoolCard from "../components/talentPool/ProfileTalentPoolCard";
 import {Alert, Badge, Button, Card, RichText, Spinner} from "../components/ui";
 import {isApiError} from "../api/errors";
 import {getProfile, updateProfile} from "../api/services/profiles";
@@ -144,6 +145,8 @@ export default function ProfileDetail(): JSX.Element {
 							<p className="text-base-content/55 text-sm">Nenhum resumo cadastrado.</p>
 						)}
 					</Card>
+
+					<ProfileTalentPoolCard profileId={profile.id} profileName={profile.name} />
 
 					<div className="grid gap-5 lg:grid-cols-2">
 						<Card title="Competências">

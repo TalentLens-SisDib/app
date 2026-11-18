@@ -2,6 +2,7 @@ import {
 	RiBriefcase4Line,
 	RiDashboardLine,
 	RiMedalLine,
+	RiStarLine,
 	RiTeamLine,
 	RiUploadCloud2Line,
 	RiUserSettingsLine,
@@ -85,6 +86,7 @@ export default function Sidebar(): JSX.Element {
 						<SidebarLink to="/candidatos" label="Candidatos" icon={RiTeamLine} suppressActive={onImport} />
 
 						<SidebarGroup title="Banco de talentos" />
+						<SidebarLink to="/banco-de-talentos" label="Talentos guardados" icon={RiStarLine} />
 						<SidebarLink to="/candidatos/importar" label="Importar currículos" icon={RiUploadCloud2Line} />
 						<SidebarLink to="/competencias" label="Competências" icon={RiMedalLine} />
 
